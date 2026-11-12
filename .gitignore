@@ -1,0 +1,22 @@
+# Build output
+out/
+bin/
+*.class
+
+# Application data (preserves directory structure via .gitkeep)
+data/users/*.properties
+data/complaints/*.properties
+data/config/*.properties
+reports/*.csv
+*.tmp
+*.corrupt
+
+# OS and Editor metadata
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath

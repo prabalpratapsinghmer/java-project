@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusFix – Smart Campus Maintenance System | Documentation Portal</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=(), payment=(), usb=(), display-capture=()">
+    <script>
+        if (window.top !== window.self) {
+            window.top.location = window.self.location;
+        }
+    </script>
+    <style>
+        :root {
+            --bg-primary: #0F172A;
+            --bg-secondary: #1E293B;
+            --bg-tertiary: #334155;
+            --accent-primary: #4F46E5;
+            --accent-hover: #4338CA;
+            --accent-glow: rgba(79, 70, 229, 0.25);
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --text-subtle: #64748B;
+            --border: #334155;
+            --border-light: #475569;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --info: #3B82F6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Top Navbar */
+        header {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .brand-badge {
+            background: var(--accent-primary);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.15s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-main);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(79, 70, 229, 0.12);
+            border: 1px solid rgba(79, 70, 229, 0.35);
+            color: #A5B4FC;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 16px;
+            border-radius: 9999px;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #CBD5E1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 760px;
+            margin: 0 auto 36px;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 48px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 14px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-light);
+        }
+
+        /* Mockup Window */
+        .mockup-window {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            margin: 0 auto 60px;
+            max-width: 980px;
+            text-align: left;
+        }
+
+        .mockup-bar {
+            background: #0B1120;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .window-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .dot-red { background: #EF4444; }
+        .dot-yellow { background: #F59E0B; }
+        .dot-green { background: #10B981; }
+
+        .mockup-title {
+            color: var(--text-subtle);
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 12px;
+        }
+
+        .mockup-body {
+            padding: 24px;
+            background: #0F172A;
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 20px;
+        }
+
+        .mockup-nav {
+            border-right: 1px solid var(--border);
+            padding-right: 16px;
+        }
+
+        .mock-nav-item {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .mock-nav-item.active {
+            background: var(--bg-tertiary);
+            color: white;
+        }
+
+        .mock-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .mock-stat {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 14px;
+            border-radius: 8px;
+        }
+
+        .mock-stat-lbl {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .mock-stat-val {
+            font-size: 24px;
+            font-weight: 800;
+            margin-top: 4px;
+        }
+
+        /* Interactive Simulator Card */
+        .simulator-section {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .section-header h2 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        .section-header p {
+            color: var(--text-muted);
+            font-size: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .sim-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .sim-result {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .badge-high { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .badge-medium { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.4); }
+        .badge-low { background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.4); }
+
+        .formula-text {
+            font-family: monospace;
+            font-size: 14px;
+            color: #A5B4FC;
+            margin-top: 8px;
+        }
+
+        /* Grid of Feature Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .feature-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-light);
+        }
+
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: 14px;
+            display: inline-block;
+        }
+
+        .feature-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Team Cards */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 60px;
+        }
+
+        .team-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .team-role {
+            font-size: 11px;
+            font-weight: 700;
+            color: #818CF8;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .team-name {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .team-domain {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Test Suite Banner */
+        .test-banner {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(79, 70, 229, 0.1) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 60px;
+        }
+
+        .test-metric {
+            font-size: 36px;
+            font-weight: 800;
+            color: #34D399;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 36px 0;
+            text-align: center;
+            color: var(--text-subtle);
+            font-size: 13px;
+        }
+
+        @media (max-width: 900px) {
+            .features-grid { grid-template-columns: 1fr; }
+            .team-grid { grid-template-columns: 1fr 1fr; }
+            .mockup-body { grid-template-columns: 1fr; }
+            .sim-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="nav-container">
+            <a href="#" class="brand">
+                <span>CampusFix</span>
+                <span class="brand-badge">Pure Java 17+</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#simulator">Priority Simulator</a></li>
+                <li><a href="#features">Architecture & Features</a></li>
+                <li><a href="#team">5-Member Team</a></li>
+                <li><a href="#tests">Test Results (30/30)</a></li>
+                <li><a href="#quickstart">Quickstart</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-pill">
+                <span>✦</span> Experiential Learning Project · 3rd Semester CSE
+            </div>
+            <h1>Smart Campus Maintenance &<br>Complaint Management System</h1>
+            <p>
+                An academic Java desktop application demonstrating pure Object-Oriented Programming,
+                deterministic rule-based prioritization, PBKDF2 cryptographic security, and atomic file persistence
+                with zero external dependencies.
+            </p>
+            <div class="cta-group">
+                <a href="#simulator" class="btn btn-primary">Try Priority Engine Simulator</a>
+                <a href="#tests" class="btn btn-secondary">View 30 Verified Tests</a>
+            </div>
+
+            <!-- Mockup Window -->
+            <div class="mockup-window">
+                <div class="mockup-bar">
+                    <span class="window-dot dot-red"></span>
+                    <span class="window-dot dot-yellow"></span>
+                    <span class="window-dot dot-green"></span>
+                    <span class="mockup-title">CampusFix – Desktop Interface [Dark Slate Theme]</span>
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-nav">
+                        <div class="mock-nav-item active">All Complaints</div>
+                        <div class="mock-nav-item">Technician Roster</div>
+                        <div class="mock-nav-item">Reports & Analytics</div>
+                        <div class="mock-nav-item">+ Report Issue</div>
+                    </div>
+                    <div>
+                        <div class="mock-stats">
+                            <div class="mock-stat">
+                                <div class="mock-stat-lbl">Total</div>
+                                <div class="mock-stat-val">28</div>
+                            </div>
+                            <div class="mock-stat">
+                                <div class="mock-stat-lbl">Pending</div>
+                                <div class="mock-stat-val" style="color: #FBBF24;">4</div>
+                            </div>
+                            <div class="mock-stat">
+                                <div class="mock-stat-lbl">In Progress</div>
+                                <div class="mock-stat-val" style="color: #60A5FA;">6</div>
+                            </div>
+                            <div class="mock-stat">
+                                <div class="mock-stat-lbl">Resolved</div>
+                                <div class="mock-stat-val" style="color: #34D399;">18</div>
+                            </div>
+                        </div>
+                        <div style="background: #1E293B; border-radius: 6px; padding: 12px; font-size: 13px; color: #94A3B8;">
+                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 8px; font-weight: 700;">
+                                <span>Title</span>
+                                <span>Category</span>
+                                <span>Priority</span>
+                                <span>Status</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                                <span style="color: white;">Main Substation Breaker Spark</span>
+                                <span>Electrical</span>
+                                <span class="badge badge-critical" style="margin: 0; padding: 2px 8px; font-size: 11px;">CRITICAL</span>
+                                <span class="badge badge-medium" style="margin: 0; padding: 2px 8px; font-size: 11px;">ASSIGNED</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                                <span style="color: white;">Seminar Hall 2 Projector Glitch</span>
+                                <span>Classroom</span>
+                                <span class="badge badge-high" style="margin: 0; padding: 2px 8px; font-size: 11px;">HIGH</span>
+                                <span class="badge badge-low" style="margin: 0; padding: 2px 8px; font-size: 11px;">RESOLVED</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Priority Simulator -->
+        <section id="simulator" class="simulator-section">
+            <div class="section-header">
+                <h2>Interactive Priority Engine Simulator</h2>
+                <p>Test the deterministic calculation rules executed in Java's PriorityService class in real-time.</p>
+            </div>
+            <div class="sim-card">
+                <div class="sim-grid">
+                    <div class="form-group">
+                        <label for="catSelect">Select Infrastructure Category:</label>
+                        <select id="catSelect" class="form-control" onchange="runSim()">
+                            <option value="ELECTRICAL" selected>Electrical (High Risk Bonus +1)</option>
+                            <option value="SAFETY">Safety (High Risk Bonus +1)</option>
+                            <option value="PLUMBING">Plumbing</option>
+                            <option value="CLASSROOM_EQUIPMENT">Classroom Equipment</option>
+                            <option value="LABORATORY_EQUIPMENT">Laboratory Equipment</option>
+                            <option value="HOSTEL_MAINTENANCE">Hostel Maintenance</option>
+                            <option value="FURNITURE">Furniture</option>
+                            <option value="SANITATION">Sanitation</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sevSelect">Select Reported Severity:</label>
+                        <select id="sevSelect" class="form-control" onchange="runSim()">
+                            <option value="1">LOW (Base Score = 1)</option>
+                            <option value="2">MEDIUM (Base Score = 2)</option>
+                            <option value="3" selected>HIGH (Base Score = 3)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="sim-result">
+                    <div id="prioBadge" class="badge badge-critical">CRITICAL PRIORITY</div>
+                    <div id="prioTarget" style="font-weight: 700; font-size: 16px;">Target Response Time: 24 Hours</div>
+                    <div id="prioFormula" class="formula-text">Base 3 + 1 (High-Risk Bonus) = 4 / 4</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section id="features" style="padding: 60px 0;">
+            <div class="section-header">
+                <h2>System Highlights & Engineering Principles</h2>
+                <p>Designed for academic excellence, strict data integrity, and demonstrable OOP rigor.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>PBKDF2 Cryptography</h3>
+                    <p>Zero plaintext persistence. Uses PBKDF2WithHmacSHA256 with 16-byte random salts and 65,536 iterations for secure student, admin, and technician passwords.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Intelligent Duplicate Detection</h3>
+                    <p>Normalizes location punctuation and searches active complaints within a 7-day rolling window to warn students before creating duplicate work orders.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Deterministic Priority</h3>
+                    <p>Transparent, explainable mathematical rule: Base severity (1-3) plus category risk bonus (+1 for Electrical/Safety) clamped at 4 (Critical).</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💾</div>
+                    <h3>Atomic File Persistence</h3>
+                    <p>All writes staged to temporary files before atomic file-system replacement via Java NIO. Corrupted records are safely isolated to .corrupt files.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Injection-Safe CSV Export</h3>
+                    <p>RFC-4180 compliant CSV generator equipped with spreadsheet formula injection defense (mitigating =, +, -, @ execution vectors).</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>Immutable Audit Trail</h3>
+                    <p>Chronological history of every state transition, technician assignment, work start, and completion notes encapsulated in unmodifiable collections.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5-Member Team Allocation -->
+        <section id="team" style="padding: 60px 0; border-top: 1px solid var(--border);">
+            <div class="section-header">
+                <h2>Five-Member Team Distribution</h2>
+                <p>Clear division of responsibilities matching laboratory syllabus requirements.</p>
+            </div>
+            <div class="team-grid">
+                <div class="team-card">
+                    <div class="team-role">Member 1</div>
+                    <div class="team-name">User Management</div>
+                    <div class="team-domain">User models, PBKDF2 cryptographic hashing, RBAC permissions, and authentication flows.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-role">Member 2</div>
+                    <div class="team-name">Complaint Aggregate</div>
+                    <div class="team-domain">Complaint encapsulation, unmodifiable audit history collections, and input validation bounds.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-role">Member 3</div>
+                    <div class="team-name">Priority & Duplicates</div>
+                    <div class="team-domain">PriorityService rule engine, location string normalization, and 7-day duplicate matching.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-role">Member 4</div>
+                    <div class="team-name">Tracking & Lifecycle</div>
+                    <div class="team-domain">AssignmentService, state transitions, technician work orders, and SLA overdue detection.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-role">Member 5</div>
+                    <div class="team-name">UI & Testing</div>
+                    <div class="team-domain">Swing design tokens, custom PillBadge / ModernTable renderers, CSV export, and TestRunner.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Automated Test Results -->
+        <section id="tests" style="padding: 40px 0;">
+            <div class="test-banner">
+                <div>
+                    <h2 style="font-size: 24px; margin-bottom: 6px;">Automated Test Suite Execution</h2>
+                    <p style="color: var(--text-muted); font-size: 14px;">
+                        Standalone test harness (TestRunner.java) executed in an isolated temporary sandbox directory.
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <div class="test-metric">30 / 30</div>
+                    <div style="color: #34D399; font-weight: 700; font-size: 13px;">100% VERIFIED PASS RATE</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quickstart Commands -->
+        <section id="quickstart" style="padding: 40px 0 80px; border-top: 1px solid var(--border);">
+            <div class="section-header">
+                <h2>Compilation & Execution Quickstart</h2>
+                <p>Run directly on any standard laptop with OpenJDK 17 or higher.</p>
+            </div>
+            <div style="background: #0B1120; border: 1px solid var(--border); border-radius: 8px; padding: 20px; max-width: 700px; margin: 0 auto; font-family: monospace; font-size: 14px;">
+                <span style="color: #64748B;"># 1. Compile all Java sources</span><br>
+                <span style="color: #A5B4FC;">./compile.sh</span><br><br>
+                <span style="color: #64748B;"># 2. Run the 30 automated verification tests</span><br>
+                <span style="color: #A5B4FC;">java -cp out edu.nie.campusfix.tests.TestRunner</span><br><br>
+                <span style="color: #64748B;"># 3. Launch the desktop graphical application</span><br>
+                <span style="color: #A5B4FC;">./run.sh</span>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>CampusFix – Smart Campus Maintenance and Complaint Management System</p>
+            <p style="margin-top: 4px; color: #475569;">Object-Oriented Programming with Java · Academic Experiential Learning</p>
+        </div>
+    </footer>
+
+    <script>
+        function runSim() {
+            const allowedCategories = ["ELECTRICAL", "SAFETY", "PLUMBING", "CLASSROOM_EQUIPMENT", "LABORATORY_EQUIPMENT", "HOSTEL_MAINTENANCE", "FURNITURE", "SANITATION", "OTHER"];
+            const rawCat = document.getElementById("catSelect").value;
+            const cat = allowedCategories.includes(rawCat) ? rawCat : "OTHER";
+            
+            const rawSev = parseInt(document.getElementById("sevSelect").value, 10);
+            const sev = (Number.isInteger(rawSev) && rawSev >= 1 && rawSev <= 3) ? rawSev : 1;
+            const isHighRisk = (cat === "ELECTRICAL" || cat === "SAFETY");
+            const bonus = isHighRisk ? 1 : 0;
+            const score = Math.min(4, Math.max(1, sev + bonus));
+
+            const badge = document.getElementById("prioBadge");
+            const target = document.getElementById("prioTarget");
+            const formula = document.getElementById("prioFormula");
+
+            badge.className = "badge ";
+            if (score === 4) {
+                badge.className += "badge-critical";
+                badge.textContent = "CRITICAL PRIORITY";
+                target.textContent = "Target Response Time: 24 Hours";
+            } else if (score === 3) {
+                badge.className += "badge-high";
+                badge.textContent = "HIGH PRIORITY";
+                target.textContent = "Target Response Time: 48 Hours";
+            } else if (score === 2) {
+                badge.className += "badge-medium";
+                badge.textContent = "MEDIUM PRIORITY";
+                target.textContent = "Target Response Time: 72 Hours";
+            } else {
+                badge.className += "badge-low";
+                badge.textContent = "LOW PRIORITY";
+                target.textContent = "Target Response Time: 7 Days (168 Hours)";
+            }
+
+            let desc = `Base Severity: ${sev}`;
+            if (bonus > 0) {
+                desc += ` + 1 High-Risk Bonus (${cat})`;
+            }
+            desc += ` = Final Score: ${score} / 4`;
+            formula.textContent = desc;
+        }
+        runSim();
+    </script>
+</body>
+</html>
