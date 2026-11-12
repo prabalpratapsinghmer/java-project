@@ -4,7 +4,7 @@ package edu.nie.campusfix.enums;
  * System user roles enforcing role-based access control (RBAC).
  */
 public enum Role {
-    STUDENT("Student / Staff"),
+    STUDENT("Student / Community / Staff"),
     ADMIN("Administrator"),
     TECHNICIAN("Maintenance Technician");
 

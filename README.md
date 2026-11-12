@@ -6,8 +6,10 @@
 **Target Environment:** OpenJDK 17+ (Java Standard Library Exclusively)
 
 [![Documentation Portal](https://img.shields.io/badge/docs-website-blue.svg)](https://prabalpratapsinghmer.github.io/java-project/)
+[![Complete Architectural Manual](https://img.shields.io/badge/manual-understand.md-indigo.svg)](understand.md)
 
-**Live Documentation Website:** [https://prabalpratapsinghmer.github.io/java-project/](https://prabalpratapsinghmer.github.io/java-project/)
+**Live Documentation Website:** [https://prabalpratapsinghmer.github.io/java-project/](https://prabalpratapsinghmer.github.io/java-project/)  
+**Comprehensive System & Architecture Manual:** [understand.md](understand.md)
 
 ---
 

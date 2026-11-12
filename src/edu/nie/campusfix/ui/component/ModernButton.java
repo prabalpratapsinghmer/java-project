@@ -43,7 +43,7 @@ public class ModernButton extends JButton {
             setHorizontalAlignment(LEADING);
             setPreferredSize(new Dimension(210, 40));
         } else {
-            setPreferredSize(new Dimension(getPreferredSize().width + 24, 38));
+            setPreferredSize(new Dimension(getPreferredSize().width + 24, 40));
         }
 
         addMouseListener(new MouseAdapter() {

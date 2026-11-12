@@ -7,6 +7,7 @@ import edu.nie.campusfix.enums.Role;
 import edu.nie.campusfix.enums.Severity;
 import edu.nie.campusfix.exception.ResourceNotFoundException;
 import edu.nie.campusfix.exception.UnauthorizedException;
+import edu.nie.campusfix.exception.ValidationException;
 import edu.nie.campusfix.model.Complaint;
 import edu.nie.campusfix.model.User;
 import edu.nie.campusfix.repository.ComplaintRepository;
@@ -15,7 +16,7 @@ import edu.nie.campusfix.util.ValidationUtil;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
+import java.util.UUID;
 /**
  * Core business service orchestrating complaint lifecycle operations,
  * authorization validation, searching, and filtering.
@@ -54,6 +55,30 @@ public class ComplaintService {
         return complaintRepository.save(complaint);
     }
 
+    /**
+     * Submits a public maintenance complaint without requiring user account credentials.
+     * Open to children, campus visitors, parents, and community members.
+     */
+    public Complaint submitPublicComplaint(String reporterName, String contact, String title,
+                                          Category category, String location, String description,
+                                          Severity severity) {
+        if (reporterName == null || reporterName.trim().length() < 2 || reporterName.trim().length() > 100) {
+            throw new ValidationException("Reporter name must be between 2 and 100 characters.");
+        }
+        ValidationUtil.validateComplaintFields(title, location, description);
+        Objects.requireNonNull(category, "Category cannot be null");
+        Objects.requireNonNull(severity, "Severity cannot be null");
+
+        String contactSuffix = (contact == null || contact.trim().isEmpty()) ? "" : " (" + contact.trim() + ")";
+        String formattedReporterName = reporterName.trim() + contactSuffix;
+        String reporterId = "public_" + UUID.randomUUID().toString().substring(0, 8);
+
+        Priority priority = priorityService.calculatePriority(severity, category);
+        Complaint complaint = Complaint.createNew(reporterId, formattedReporterName,
+                title.trim(), category, location.trim(), description.trim(), severity, priority);
+
+        return complaintRepository.save(complaint);
+    }
     /**
      * Identifies potential duplicate complaints for a location and category.
      */

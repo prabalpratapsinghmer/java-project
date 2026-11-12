@@ -82,7 +82,7 @@ public class ResolveComplaintDialog extends JDialog {
         instructLbl.setForeground(UITheme.TEXT_PRIMARY);
         bodyCard.add(instructLbl, BorderLayout.NORTH);
 
-        notesArea.setFont(UITheme.FONT_REGULAR);
+        UITheme.styleTextArea(notesArea);
         notesArea.setLineWrap(true);
         notesArea.setWrapStyleWord(true);
         notesArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));

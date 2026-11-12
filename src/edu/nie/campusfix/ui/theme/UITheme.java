@@ -2,7 +2,10 @@ package edu.nie.campusfix.ui.theme;
 
 import javax.swing.BorderFactory;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
@@ -83,14 +86,14 @@ public final class UITheme {
     public static final Color BADGE_LOW_BORDER = new Color(0xDC, 0xFC, 0xE7);
 
     // Typography
-    public static final Font FONT_TITLE = new Font(Font.SANS_SERIF, Font.BOLD, 22);
-    public static final Font FONT_SUBTITLE = new Font(Font.SANS_SERIF, Font.BOLD, 16);
-    public static final Font FONT_SECTION = new Font(Font.SANS_SERIF, Font.BOLD, 14);
-    public static final Font FONT_REGULAR = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
-    public static final Font FONT_BOLD = new Font(Font.SANS_SERIF, Font.BOLD, 13);
-    public static final Font FONT_SMALL = new Font(Font.SANS_SERIF, Font.PLAIN, 11);
-    public static final Font FONT_BADGE = new Font(Font.SANS_SERIF, Font.BOLD, 11);
-    public static final Font FONT_METRIC = new Font(Font.SANS_SERIF, Font.BOLD, 28);
+    public static final Font FONT_TITLE = new Font(Font.SANS_SERIF, Font.BOLD, 26);
+    public static final Font FONT_SUBTITLE = new Font(Font.SANS_SERIF, Font.BOLD, 18);
+    public static final Font FONT_SECTION = new Font(Font.SANS_SERIF, Font.BOLD, 16);
+    public static final Font FONT_REGULAR = new Font(Font.SANS_SERIF, Font.PLAIN, 15);
+    public static final Font FONT_BOLD = new Font(Font.SANS_SERIF, Font.BOLD, 15);
+    public static final Font FONT_SMALL = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+    public static final Font FONT_BADGE = new Font(Font.SANS_SERIF, Font.BOLD, 12);
+    public static final Font FONT_METRIC = new Font(Font.SANS_SERIF, Font.BOLD, 32);
 
     private UITheme() {
         // Utility
@@ -104,6 +107,37 @@ public final class UITheme {
             System.setProperty("awt.useSystemAAFontSettings", "on");
             System.setProperty("swing.aatext", "true");
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            UIManager.put("Label.foreground", TEXT_PRIMARY);
+            UIManager.put("Label.font", FONT_REGULAR);
+            UIManager.put("TabbedPane.foreground", TEXT_PRIMARY);
+            UIManager.put("TabbedPane.selectedForeground", TEXT_PRIMARY);
+            UIManager.put("TabbedPane.background", Color.WHITE);
+            UIManager.put("TabbedPane.font", FONT_BOLD);
+            UIManager.put("TextFieldUI", "javax.swing.plaf.basic.BasicTextFieldUI");
+            UIManager.put("PasswordFieldUI", "javax.swing.plaf.basic.BasicPasswordFieldUI");
+            UIManager.put("TextAreaUI", "javax.swing.plaf.basic.BasicTextAreaUI");
+            UIManager.put("TextField.foreground", TEXT_PRIMARY);
+            UIManager.put("TextField.background", Color.WHITE);
+            UIManager.put("TextField.font", FONT_REGULAR);
+            UIManager.put("PasswordField.foreground", TEXT_PRIMARY);
+            UIManager.put("PasswordField.background", Color.WHITE);
+            UIManager.put("PasswordField.font", FONT_REGULAR);
+            UIManager.put("TextArea.foreground", TEXT_PRIMARY);
+            UIManager.put("TextArea.background", Color.WHITE);
+            UIManager.put("TextArea.font", FONT_REGULAR);
+            UIManager.put("ComboBox.foreground", TEXT_PRIMARY);
+            UIManager.put("ComboBox.background", Color.WHITE);
+            UIManager.put("ComboBox.font", FONT_REGULAR);
+            UIManager.put("Button.font", FONT_BOLD);
+            UIManager.put("Table.foreground", TEXT_PRIMARY);
+            UIManager.put("Table.background", Color.WHITE);
+            UIManager.put("Table.font", FONT_REGULAR);
+            UIManager.put("TableHeader.foreground", new Color(0x47, 0x55, 0x69));
+            UIManager.put("TableHeader.background", BG_CANVAS);
+            UIManager.put("TableHeader.font", FONT_BOLD);
+            UIManager.put("CheckBox.font", FONT_REGULAR);
+            UIManager.put("Panel.background", BG_CANVAS);
+            UIManager.put("Panel.foreground", TEXT_PRIMARY);
         } catch (Exception ignored) {}
     }
 
@@ -133,6 +167,11 @@ public final class UITheme {
      * Styles text field with padding, clean border, and modern font.
      */
     public static void styleTextField(JTextField tf) {
+        if (tf instanceof javax.swing.JPasswordField) {
+            tf.setUI(new javax.swing.plaf.basic.BasicPasswordFieldUI());
+        } else {
+            tf.setUI(new javax.swing.plaf.basic.BasicTextFieldUI());
+        }
         tf.setFont(FONT_REGULAR);
         tf.setForeground(TEXT_PRIMARY);
         tf.setBackground(Color.WHITE);
@@ -140,7 +179,7 @@ public final class UITheme {
         Border line = BorderFactory.createLineBorder(BORDER_INPUT, 1);
         Border pad = BorderFactory.createEmptyBorder(8, 10, 8, 10);
         tf.setBorder(BorderFactory.createCompoundBorder(line, pad));
-        tf.setPreferredSize(new Dimension(tf.getPreferredSize().width, 36));
+        tf.setPreferredSize(new Dimension(tf.getPreferredSize().width, 40));
     }
 
     /**
@@ -150,6 +189,40 @@ public final class UITheme {
         cb.setFont(FONT_REGULAR);
         cb.setForeground(TEXT_PRIMARY);
         cb.setBackground(Color.WHITE);
-        cb.setPreferredSize(new Dimension(cb.getPreferredSize().width, 36));
+        cb.setPreferredSize(new Dimension(cb.getPreferredSize().width, 40));
+    }
+
+    /**
+     * Styles a label with the specified font and foreground color (defaults to FONT_REGULAR and TEXT_PRIMARY).
+     */
+    public static void styleLabel(JLabel label, Font font, Color fg) {
+        if (label == null) return;
+        label.setFont(font != null ? font : FONT_REGULAR);
+        label.setForeground(fg != null ? fg : TEXT_PRIMARY);
+    }
+
+    /**
+     * Styles text area with standard typography, high contrast colors, and primary caret.
+     */
+    public static void styleTextArea(JTextArea ta) {
+        if (ta == null) return;
+        ta.setFont(FONT_REGULAR);
+        ta.setForeground(TEXT_PRIMARY);
+        ta.setBackground(Color.WHITE);
+        ta.setCaretColor(PRIMARY);
+        ta.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+    }
+
+    /**
+     * Styles tabbed pane with bold font, white background, and high contrast tab headers.
+     */
+    public static void styleTabbedPane(JTabbedPane tp) {
+        if (tp == null) return;
+        tp.setFont(FONT_BOLD);
+        tp.setForeground(TEXT_PRIMARY);
+        tp.setBackground(Color.WHITE);
+        for (int i = 0; i < tp.getTabCount(); i++) {
+            tp.setForegroundAt(i, TEXT_PRIMARY);
+        }
     }
 }

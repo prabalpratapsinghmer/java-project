@@ -107,6 +107,7 @@ public class StudentDashboardPanel extends JPanel {
 
         JLabel searchLbl = new JLabel("Search:");
         searchLbl.setFont(UITheme.FONT_BOLD);
+        searchLbl.setForeground(UITheme.TEXT_PRIMARY);
         UITheme.styleTextField(searchField);
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { refreshTable(); }
@@ -120,7 +121,10 @@ public class StudentDashboardPanel extends JPanel {
         filterBox.add(searchLbl);
         filterBox.add(searchField);
         filterBox.add(Box.createHorizontalStrut(8));
-        filterBox.add(new JLabel("Status:"));
+        JLabel statusLbl = new JLabel("Status:");
+        statusLbl.setFont(UITheme.FONT_BOLD);
+        statusLbl.setForeground(UITheme.TEXT_PRIMARY);
+        filterBox.add(statusLbl);
         filterBox.add(statusFilter);
 
         JPanel actionsBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));

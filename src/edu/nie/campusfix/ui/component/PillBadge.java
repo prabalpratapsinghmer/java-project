@@ -88,9 +88,9 @@ public class PillBadge extends JComponent {
 
     private void updatePreferredSize() {
         FontMetrics fm = getFontMetrics(getFont() != null ? getFont() : UITheme.FONT_BADGE);
-        int width = fm.stringWidth(text) + 20;
+        int width = fm.stringWidth(text) + 24;
         int height = fm.getHeight() + 8;
-        setPreferredSize(new Dimension(Math.max(60, width), Math.max(24, height)));
+        setPreferredSize(new Dimension(Math.max(60, width), Math.max(28, height)));
     }
 
     @Override

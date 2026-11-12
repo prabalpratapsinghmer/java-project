@@ -55,6 +55,7 @@ public class MainFrame extends JFrame {
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1240, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setMinimumSize(new Dimension(1024, 680));
         setLocationRelativeTo(null);
         getContentPane().setBackground(UITheme.BG_CANVAS);

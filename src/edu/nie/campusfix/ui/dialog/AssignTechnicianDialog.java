@@ -118,6 +118,7 @@ public class AssignTechnicianDialog extends JDialog {
         gbc.gridy = 0; gbc.gridx = 0; gbc.weightx = 0.3;
         JLabel techLbl = new JLabel("Technician *");
         techLbl.setFont(UITheme.FONT_BOLD);
+        techLbl.setForeground(UITheme.TEXT_PRIMARY);
         formCard.add(techLbl, gbc);
 
         gbc.gridx = 1; gbc.weightx = 0.7;
@@ -126,6 +127,7 @@ public class AssignTechnicianDialog extends JDialog {
         gbc.gridy = 1; gbc.gridx = 0; gbc.weightx = 0.3;
         JLabel noteLbl = new JLabel("Assignment Note");
         noteLbl.setFont(UITheme.FONT_BOLD);
+        noteLbl.setForeground(UITheme.TEXT_PRIMARY);
         formCard.add(noteLbl, gbc);
 
         gbc.gridx = 1; gbc.weightx = 0.7;

@@ -102,8 +102,7 @@ public class NewComplaintDialog extends JDialog {
         UITheme.styleComboBox(categoryCombo);
         UITheme.styleTextField(locationField);
         UITheme.styleComboBox(severityCombo);
-
-        descriptionArea.setFont(UITheme.FONT_REGULAR);
+        UITheme.styleTextArea(descriptionArea);
         descriptionArea.setLineWrap(true);
         descriptionArea.setWrapStyleWord(true);
         descriptionArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));

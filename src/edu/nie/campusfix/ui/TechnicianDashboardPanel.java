@@ -92,6 +92,7 @@ public class TechnicianDashboardPanel extends JPanel {
 
         JLabel sLbl = new JLabel("Search:");
         sLbl.setFont(UITheme.FONT_BOLD);
+        sLbl.setForeground(UITheme.TEXT_PRIMARY);
         UITheme.styleTextField(searchField);
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { refreshTable(); }
@@ -105,7 +106,10 @@ public class TechnicianDashboardPanel extends JPanel {
         leftBox.add(sLbl);
         leftBox.add(searchField);
         leftBox.add(Box.createHorizontalStrut(8));
-        leftBox.add(new JLabel("Status:"));
+        JLabel statusLbl = new JLabel("Status:");
+        statusLbl.setFont(UITheme.FONT_BOLD);
+        statusLbl.setForeground(UITheme.TEXT_PRIMARY);
+        leftBox.add(statusLbl);
         leftBox.add(statusFilter);
 
         JPanel rightBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));

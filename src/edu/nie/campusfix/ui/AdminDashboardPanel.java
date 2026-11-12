@@ -18,6 +18,7 @@ import edu.nie.campusfix.ui.component.PillBadge;
 import edu.nie.campusfix.ui.component.StatCard;
 import edu.nie.campusfix.ui.dialog.AssignTechnicianDialog;
 import edu.nie.campusfix.ui.dialog.ComplaintDetailDialog;
+import edu.nie.campusfix.ui.dialog.NewComplaintDialog;
 import edu.nie.campusfix.ui.theme.UITheme;
 
 import javax.swing.BorderFactory;
@@ -146,6 +147,7 @@ public class AdminDashboardPanel extends JPanel {
         tabbedPane.addTab("Complaints Overview", createComplaintsTab());
         tabbedPane.addTab("Technician Roster", createTechnicianTab());
         tabbedPane.addTab("Reports & Analytics", createReportsTab());
+        UITheme.styleTabbedPane(tabbedPane);
 
         tabbedPane.addChangeListener(e -> {
             int idx = tabbedPane.getSelectedIndex();
@@ -179,7 +181,7 @@ public class AdminDashboardPanel extends JPanel {
         card.setLayout(new BorderLayout(0, 10));
 
         // Filter Bar
-        JPanel toolbar = new JPanel(new BorderLayout());
+        JPanel toolbar = new JPanel(new BorderLayout(0, 8));
         toolbar.setOpaque(false);
 
         JPanel leftFilters = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
@@ -221,8 +223,10 @@ public class AdminDashboardPanel extends JPanel {
             overdueCheck.setSelected(false);
             refreshComplaints();
         });
-
-        leftFilters.add(new JLabel("Search:"));
+        JLabel searchLbl = new JLabel("Search:");
+        searchLbl.setFont(UITheme.FONT_BOLD);
+        searchLbl.setForeground(UITheme.TEXT_PRIMARY);
+        leftFilters.add(searchLbl);
         leftFilters.add(searchField);
         leftFilters.add(categoryFilter);
         leftFilters.add(priorityFilter);
@@ -233,21 +237,24 @@ public class AdminDashboardPanel extends JPanel {
         JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         rightActions.setOpaque(false);
 
+        ModernButton logComplaintBtn = new ModernButton("+ Log New Complaint", ModernButton.Style.PRIMARY);
+        logComplaintBtn.addActionListener(e -> handleLogComplaint());
+
         ModernButton viewBtn = new ModernButton("View Details", ModernButton.Style.SECONDARY);
         viewBtn.addActionListener(e -> handleViewDetails());
 
-        ModernButton assignBtn = new ModernButton("Assign / Reassign", ModernButton.Style.PRIMARY);
+        ModernButton assignBtn = new ModernButton("Assign / Reassign", ModernButton.Style.SECONDARY);
         assignBtn.addActionListener(e -> handleAssignTechnician());
 
         ModernButton refreshBtn = new ModernButton("Refresh", ModernButton.Style.SECONDARY);
         refreshBtn.addActionListener(e -> refreshComplaints());
 
+        rightActions.add(logComplaintBtn);
         rightActions.add(viewBtn);
         rightActions.add(assignBtn);
         rightActions.add(refreshBtn);
-
-        toolbar.add(leftFilters, BorderLayout.WEST);
-        toolbar.add(rightActions, BorderLayout.EAST);
+        toolbar.add(leftFilters, BorderLayout.CENTER);
+        toolbar.add(rightActions, BorderLayout.SOUTH);
         card.add(toolbar, BorderLayout.NORTH);
 
         // Table
@@ -459,6 +466,14 @@ public class AdminDashboardPanel extends JPanel {
         panel.repaint();
     }
 
+    private void handleLogComplaint() {
+        NewComplaintDialog dlg = new NewComplaintDialog(parentFrame, complaintService, priorityService, adminUser);
+        dlg.setVisible(true);
+        if (dlg.isComplaintSubmitted()) {
+            refreshComplaints();
+        }
+    }
+
     private void handleViewDetails() {
         int row = complaintsTable.getSelectedRow();
         if (row < 0 || row >= currentComplaints.size()) {
@@ -578,6 +593,7 @@ public class AdminDashboardPanel extends JPanel {
         gbc.weightx = 0.35;
         JLabel l = new JLabel(lbl);
         l.setFont(UITheme.FONT_BOLD);
+        l.setForeground(UITheme.TEXT_PRIMARY);
         panel.add(l, gbc);
 
         gbc.gridx = 1;

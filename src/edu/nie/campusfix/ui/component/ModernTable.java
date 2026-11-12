@@ -38,7 +38,7 @@ public class ModernTable extends JTable {
     }
 
     private void initStyle() {
-        setRowHeight(38);
+        setRowHeight(44);
         setShowVerticalLines(false);
         setShowHorizontalLines(true);
         setGridColor(new Color(0xF1, 0xF5, 0xF9));
@@ -50,8 +50,8 @@ public class ModernTable extends JTable {
 
         // Header style
         JTableHeader header = getTableHeader();
-        header.setPreferredSize(new Dimension(header.getPreferredSize().width, 36));
-        header.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        header.setPreferredSize(new Dimension(header.getPreferredSize().width, 40));
+        header.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         header.setForeground(new Color(0x47, 0x55, 0x69));
         header.setBackground(UITheme.BG_CANVAS);
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.BORDER_CARD));
@@ -117,7 +117,10 @@ public class ModernTable extends JTable {
                 PillBadge badge = PillBadge.createForStatus(status);
                 panel.add(badge, BorderLayout.WEST);
             } else if (value != null) {
-                panel.add(new JLabel(value.toString()), BorderLayout.WEST);
+                JLabel fallback = new JLabel(value.toString());
+                fallback.setFont(UITheme.FONT_REGULAR);
+                fallback.setForeground(UITheme.TEXT_PRIMARY);
+                panel.add(fallback, BorderLayout.WEST);
             }
             return panel;
         }
@@ -144,7 +147,10 @@ public class ModernTable extends JTable {
                 PillBadge badge = PillBadge.createForPriority(priority);
                 panel.add(badge, BorderLayout.WEST);
             } else if (value != null) {
-                panel.add(new JLabel(value.toString()), BorderLayout.WEST);
+                JLabel fallback = new JLabel(value.toString());
+                fallback.setFont(UITheme.FONT_REGULAR);
+                fallback.setForeground(UITheme.TEXT_PRIMARY);
+                panel.add(fallback, BorderLayout.WEST);
             }
             return panel;
         }
@@ -171,7 +177,10 @@ public class ModernTable extends JTable {
                 PillBadge badge = PillBadge.createForSeverity(severity);
                 panel.add(badge, BorderLayout.WEST);
             } else if (value != null) {
-                panel.add(new JLabel(value.toString()), BorderLayout.WEST);
+                JLabel fallback = new JLabel(value.toString());
+                fallback.setFont(UITheme.FONT_REGULAR);
+                fallback.setForeground(UITheme.TEXT_PRIMARY);
+                panel.add(fallback, BorderLayout.WEST);
             }
             return panel;
         }
