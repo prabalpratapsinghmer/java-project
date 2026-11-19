@@ -32,9 +32,9 @@ public class StatCard extends JPanel {
         this.accentColor = accentColor != null ? accentColor : UITheme.PRIMARY;
         setLayout(new BorderLayout(0, 4));
         setOpaque(false);
-        setBorder(BorderFactory.createEmptyBorder(14, 14, 12, 14));
-        setPreferredSize(new Dimension(150, 88));
-        setMinimumSize(new Dimension(120, 82));
+        setBorder(BorderFactory.createEmptyBorder(UITheme.s(14), UITheme.s(14), UITheme.s(12), UITheme.s(14)));
+        setPreferredSize(new Dimension(UITheme.s(150), UITheme.s(90)));
+        setMinimumSize(new Dimension(UITheme.s(120), UITheme.s(84)));
 
         titleLabel = new JLabel(title.toUpperCase());
         titleLabel.setFont(UITheme.FONT_BADGE);

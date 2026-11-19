@@ -64,6 +64,7 @@ echo "Verified executable JAR: ${DIST_DIR}/${JAR_NAME}"
 
 # 4. Build Cross-Platform Portable Bundle (Windows + macOS + Linux)
 PORTABLE_DIR="${DIST_DIR}/portable/${APP_NAME}-${VERSION}"
+mkdir -p "${PORTABLE_DIR}/data/users" "${PORTABLE_DIR}/data/complaints" "${PORTABLE_DIR}/data/config" "${PORTABLE_DIR}/reports"
 cp "${DIST_DIR}/${JAR_NAME}" "${PORTABLE_DIR}/${JAR_NAME}"
 
 cat > "${PORTABLE_DIR}/Launch-Windows.bat" << 'EOF'

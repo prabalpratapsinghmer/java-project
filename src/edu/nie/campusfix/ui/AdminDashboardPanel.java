@@ -53,7 +53,6 @@ import java.awt.Insets;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.File;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -201,14 +200,14 @@ public class AdminDashboardPanel extends JPanel {
         };
         complaintsTable = new ModernTable(complaintsModel);
         complaintsTable.enableDefaultSorting();
-        complaintsTable.getColumnModel().getColumn(0).setPreferredWidth(95);
-        complaintsTable.getColumnModel().getColumn(1).setPreferredWidth(185);
-        complaintsTable.getColumnModel().getColumn(2).setPreferredWidth(125);
-        complaintsTable.getColumnModel().getColumn(3).setPreferredWidth(130);
-        complaintsTable.getColumnModel().getColumn(4).setPreferredWidth(95);
-        complaintsTable.getColumnModel().getColumn(5).setPreferredWidth(105);
-        complaintsTable.getColumnModel().getColumn(6).setPreferredWidth(125);
-        complaintsTable.getColumnModel().getColumn(7).setPreferredWidth(145);
+        complaintsTable.getColumnModel().getColumn(0).setPreferredWidth(UITheme.s(95));
+        complaintsTable.getColumnModel().getColumn(1).setPreferredWidth(UITheme.s(185));
+        complaintsTable.getColumnModel().getColumn(2).setPreferredWidth(UITheme.s(125));
+        complaintsTable.getColumnModel().getColumn(3).setPreferredWidth(UITheme.s(130));
+        complaintsTable.getColumnModel().getColumn(4).setPreferredWidth(UITheme.s(95));
+        complaintsTable.getColumnModel().getColumn(5).setPreferredWidth(UITheme.s(105));
+        complaintsTable.getColumnModel().getColumn(6).setPreferredWidth(UITheme.s(125));
+        complaintsTable.getColumnModel().getColumn(7).setPreferredWidth(UITheme.s(145));
         complaintsTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -434,7 +433,7 @@ public class AdminDashboardPanel extends JPanel {
         JLabel searchLbl = new JLabel("Search:");
         searchLbl.setFont(UITheme.FONT_SMALL_BOLD);
         UITheme.styleTextField(searchField);
-        searchField.setPreferredSize(new Dimension(200, 36));
+        searchField.setPreferredSize(new Dimension(UITheme.s(200), UITheme.s(38)));
         searchField.setToolTipText("Search by Complaint ID, title, location, reporter, or technician");
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) { refreshComplaints(); }
@@ -474,7 +473,7 @@ public class AdminDashboardPanel extends JPanel {
         JLabel techLbl = new JLabel("Technician:");
         techLbl.setFont(UITheme.FONT_SMALL_BOLD);
         UITheme.styleComboBox(techFilter);
-        techFilter.setPreferredSize(new Dimension(210, 36));
+        techFilter.setPreferredSize(new Dimension(UITheme.s(220), UITheme.s(38)));
         techFilter.addActionListener(e -> {
             if (!updatingTechFilter) {
                 refreshComplaints();
@@ -634,7 +633,7 @@ public class AdminDashboardPanel extends JPanel {
         overduePriorityFilter.addItem("All Priorities");
         for (Priority p : Priority.values()) overduePriorityFilter.addItem(p);
         UITheme.styleComboBox(overduePriorityFilter);
-        overduePriorityFilter.setPreferredSize(new Dimension(150, 36));
+        overduePriorityFilter.setPreferredSize(new Dimension(UITheme.s(160), UITheme.s(38)));
         overduePriorityFilter.addActionListener(e -> refreshOverdue());
 
         overdueCountLabel.setFont(UITheme.FONT_SMALL_BOLD);
@@ -1086,8 +1085,13 @@ public class AdminDashboardPanel extends JPanel {
             return;
         }
         Complaint selected = backingList.get(modelRow);
-        ComplaintDetailDialog dlg = new ComplaintDetailDialog(parentFrame, selected, priorityService);
-        dlg.setVisible(true);
+        try {
+            Complaint fresh = complaintService.getComplaintForUser(adminUser, selected.getId());
+            ComplaintDetailDialog dlg = new ComplaintDetailDialog(parentFrame, fresh, priorityService);
+            dlg.setVisible(true);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Access Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void handleAssignTechnician(ModernTable table, List<Complaint> backingList) {
@@ -1302,9 +1306,10 @@ public class AdminDashboardPanel extends JPanel {
     }
 
     private void handleExportCsv(ExportType type) {
-        JFileChooser chooser = new JFileChooser(new File("reports"));
+        Path defaultReportsDir = edu.nie.campusfix.util.FileStorageUtil.resolveDefaultReportsDir();
+        JFileChooser chooser = new JFileChooser(defaultReportsDir.toFile());
         chooser.setDialogTitle("Save CSV Report");
-        chooser.setSelectedFile(new File("reports", type.defaultFileName));
+        chooser.setSelectedFile(defaultReportsDir.resolve(type.defaultFileName).toFile());
         chooser.setFileFilter(new FileNameExtensionFilter("CSV Files (*.csv)", "csv"));
 
         int result = chooser.showSaveDialog(this);
@@ -1312,11 +1317,12 @@ public class AdminDashboardPanel extends JPanel {
             return;
         }
 
-        File chosen = chooser.getSelectedFile();
-        if (!chosen.getName().toLowerCase().endsWith(".csv")) {
-            chosen = new File(chosen.getParentFile(), chosen.getName() + ".csv");
+        Path rawSelected = chooser.getSelectedFile().toPath().toAbsolutePath().normalize();
+        String fileName = rawSelected.getFileName().toString();
+        if (!fileName.toLowerCase().endsWith(".csv")) {
+            rawSelected = rawSelected.resolveSibling(fileName + ".csv");
         }
-        Path destPath = chosen.toPath();
+        final Path destPath = rawSelected;
 
         new SwingWorker<Void, Void>() {
             @Override

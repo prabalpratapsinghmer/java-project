@@ -137,14 +137,14 @@ public class TechnicianDashboardPanel extends JPanel {
         };
         complaintsTable = new ModernTable(tableModel);
         complaintsTable.enableDefaultSorting();
-        complaintsTable.getColumnModel().getColumn(0).setPreferredWidth(80);
-        complaintsTable.getColumnModel().getColumn(1).setPreferredWidth(190);
-        complaintsTable.getColumnModel().getColumn(2).setPreferredWidth(135);
-        complaintsTable.getColumnModel().getColumn(3).setPreferredWidth(145);
-        complaintsTable.getColumnModel().getColumn(4).setPreferredWidth(100);
-        complaintsTable.getColumnModel().getColumn(5).setPreferredWidth(110);
-        complaintsTable.getColumnModel().getColumn(6).setPreferredWidth(90);
-        complaintsTable.getColumnModel().getColumn(7).setPreferredWidth(130);
+        complaintsTable.getColumnModel().getColumn(0).setPreferredWidth(UITheme.s(85));
+        complaintsTable.getColumnModel().getColumn(1).setPreferredWidth(UITheme.s(190));
+        complaintsTable.getColumnModel().getColumn(2).setPreferredWidth(UITheme.s(135));
+        complaintsTable.getColumnModel().getColumn(3).setPreferredWidth(UITheme.s(145));
+        complaintsTable.getColumnModel().getColumn(4).setPreferredWidth(UITheme.s(100));
+        complaintsTable.getColumnModel().getColumn(5).setPreferredWidth(UITheme.s(110));
+        complaintsTable.getColumnModel().getColumn(6).setPreferredWidth(UITheme.s(95));
+        complaintsTable.getColumnModel().getColumn(7).setPreferredWidth(UITheme.s(140));
 
         complaintsTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -238,7 +238,7 @@ public class TechnicianDashboardPanel extends JPanel {
         activeCard.add(urgentHolder, BorderLayout.CENTER);
 
         JPanel breakdownCard = UITheme.createCardPanel(16, 18);
-        breakdownCard.setPreferredSize(new Dimension(280, 260));
+        breakdownCard.setPreferredSize(new Dimension(UITheme.s(290), UITheme.s(260)));
         breakdownCard.setLayout(new BorderLayout(0, 10));
         JLabel bdTitle = new JLabel("ACTIVE BY PRIORITY");
         bdTitle.setFont(UITheme.FONT_BADGE);
@@ -279,7 +279,7 @@ public class TechnicianDashboardPanel extends JPanel {
         JLabel sLbl = new JLabel("Search:");
         sLbl.setFont(UITheme.FONT_SMALL_BOLD);
         UITheme.styleTextField(searchField);
-        searchField.setPreferredSize(new Dimension(200, 36));
+        searchField.setPreferredSize(new Dimension(UITheme.s(200), UITheme.s(38)));
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) { refreshTasksTable(); }
             @Override public void removeUpdate(DocumentEvent e) { refreshTasksTable(); }
@@ -289,7 +289,7 @@ public class TechnicianDashboardPanel extends JPanel {
         priorityFilter.addItem("All Priorities");
         for (Priority p : Priority.values()) priorityFilter.addItem(p);
         UITheme.styleComboBox(priorityFilter);
-        priorityFilter.setPreferredSize(new Dimension(145, 36));
+        priorityFilter.setPreferredSize(new Dimension(UITheme.s(158), UITheme.s(38)));
         priorityFilter.addActionListener(e -> refreshTasksTable());
 
         statusFilter.addItem("All Statuses");
@@ -297,7 +297,7 @@ public class TechnicianDashboardPanel extends JPanel {
         statusFilter.addItem(ComplaintStatus.IN_PROGRESS);
         statusFilter.addItem(ComplaintStatus.RESOLVED);
         UITheme.styleComboBox(statusFilter);
-        statusFilter.setPreferredSize(new Dimension(145, 36));
+        statusFilter.setPreferredSize(new Dimension(UITheme.s(160), UITheme.s(38)));
         statusFilter.addActionListener(e -> refreshTasksTable());
 
         ModernButton resetBtn = new ModernButton("Reset", ModernButton.Style.SECONDARY);
@@ -460,8 +460,13 @@ public class TechnicianDashboardPanel extends JPanel {
                     "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        ComplaintDetailDialog dlg = new ComplaintDetailDialog(parentFrame, list.get(modelRow), priorityService);
-        dlg.setVisible(true);
+        try {
+            Complaint fresh = complaintService.getComplaintForUser(techUser, list.get(modelRow).getId());
+            ComplaintDetailDialog dlg = new ComplaintDetailDialog(parentFrame, fresh, priorityService);
+            dlg.setVisible(true);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Access Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void handleStartWork() {

@@ -26,28 +26,53 @@ public final class FileStorageUtil {
     }
 
     /**
-     * Resolves a writable default data directory: uses local ./data/<subDir> when the
-     * working directory is writable, or falls back to <user.home>/.campusfix/data/<subDir>
-     * when launched from a read-only installation folder (such as /opt/campusfix).
+     * Determines whether the current working directory is an active CampusFix project or
+     * portable bundle directory (rather than a generic OS directory like $HOME or /opt/campusfix).
+     */
+    private static boolean isLocalWorkspaceWritable() {
+        try {
+            Path cwd = Path.of(".").toAbsolutePath().normalize();
+            if (!Files.isWritable(cwd)) {
+                return false;
+            }
+            Path dataRoot = cwd.resolve("data");
+            if (Files.isDirectory(dataRoot) && Files.isWritable(dataRoot)) {
+                return true;
+            }
+            return Files.exists(cwd.resolve("compile.sh"))
+                    || Files.exists(cwd.resolve("CampusFix-1.0.0.jar"))
+                    || Files.isDirectory(cwd.resolve("src"));
+        } catch (SecurityException e) {
+            System.err.println("[CampusFix] Local workspace check failed, using user home fallback: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Resolves a writable default data directory: uses local ./data/<subDir> when running
+     * inside a writable project/portable workspace, or falls back to <user.home>/.campusfix/data/<subDir>
+     * when launched from a system-wide installation (such as /opt/campusfix or desktop shortcut).
      */
     public static Path resolveDefaultDataDir(String subDir) {
-        Path localDir = Path.of("data", subDir);
-        try {
-            Path probeParent = localDir.toAbsolutePath().normalize().getParent();
-            if (probeParent != null) {
-                Path existingAncestor = probeParent;
-                while (existingAncestor != null && !Files.exists(existingAncestor)) {
-                    existingAncestor = existingAncestor.getParent();
-                }
-                if (existingAncestor != null && Files.isWritable(existingAncestor)) {
-                    return localDir;
-                }
-            }
-        } catch (SecurityException e) {
-            System.err.println("[CampusFix] Local data directory check failed, using user home fallback: " + e.getMessage());
+        if (isLocalWorkspaceWritable()) {
+            return Path.of("data", subDir);
         }
         String userHome = System.getProperty("user.home", ".");
         return Path.of(userHome, ".campusfix", "data", subDir);
+    }
+
+    /**
+     * Resolves a writable default reports directory for CSV exports and guarantees it exists.
+     */
+    public static Path resolveDefaultReportsDir() {
+        Path dir;
+        if (isLocalWorkspaceWritable()) {
+            dir = Path.of("reports");
+        } else {
+            String userHome = System.getProperty("user.home", ".");
+            dir = Path.of(userHome, ".campusfix", "reports");
+        }
+        return ensureDirectory(dir);
     }
 
     /**

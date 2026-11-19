@@ -341,6 +341,15 @@ public class TestRunner {
             Complaint assigned = compService.assignTechnician(admin, complaint.getId(), tech.getId(), "Urgent electrical inspection");
             assertEquals(ComplaintStatus.ASSIGNED, assigned.getStatus(), "Status must be ASSIGNED");
             assertEquals(tech.getId(), assigned.getAssignedTechnicianId(), "Assigned technician ID must match");
+
+            // Redundant no-op reassignment to the same technician in ASSIGNED status must be rejected
+            boolean redundantBlocked = false;
+            try {
+                compService.assignTechnician(admin, complaint.getId(), tech.getId(), "Duplicate assign");
+            } catch (ValidationException ve) {
+                redundantBlocked = true;
+            }
+            assertTrue(redundantBlocked, "Redundant assignment to the same already-assigned technician must be rejected");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -711,11 +720,23 @@ public class TestRunner {
             assertNotNull(users, "Should safely return valid users even with corrupted file present");
             assertFalse(safeRepo.getCorruptedFileWarnings().isEmpty(), "Corrupted file warning must be recorded");
 
+            // Partial user properties missing fullName/email must also be safely quarantined without NPE
+            Path partialUserFile = userDir.resolve("partial_user.properties");
+            Files.writeString(partialUserFile, "id=u-partial\nusername=part\npasswordHash=abc:def\nrole=STUDENT\n");
+            safeRepo.findAll();
+            assertFalse(Files.exists(partialUserFile), "Partial user record missing fullName/email must be quarantined");
+
+            // Partial complaint properties missing location/description must also be safely quarantined
+            FileComplaintRepository compRepo = new FileComplaintRepository(complaintDir);
+            Path partialCompFile = complaintDir.resolve("partial_comp.properties");
+            Files.writeString(partialCompFile, "id=c-partial\nreporterId=u1\ntitle=Test\ncategory=ELECTRICAL\nseverity=LOW\npriority=MEDIUM\nstatus=PENDING\n");
+            compRepo.findAll();
+            assertFalse(Files.exists(partialCompFile), "Partial complaint record missing location/description must be quarantined");
+            assertFalse(compRepo.getCorruptedFileWarnings().isEmpty(), "Complaint corruption warning must be recorded");
+
             // Path traversal rejection verification
             assertTrue(safeRepo.findById("../../../etc/passwd").isEmpty(),
                     "Path traversal attempt on user repository must return empty Optional");
-
-            ComplaintRepository compRepo = new FileComplaintRepository(complaintDir);
             assertTrue(compRepo.findById("../../../etc/shadow").isEmpty(),
                     "Path traversal attempt on complaint repository must return empty Optional");
 

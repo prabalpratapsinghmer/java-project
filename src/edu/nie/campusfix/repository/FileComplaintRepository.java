@@ -16,10 +16,12 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * File-based implementation of ComplaintRepository storing complaints and their complete
@@ -29,7 +31,7 @@ import java.util.Properties;
 public class FileComplaintRepository implements ComplaintRepository {
     private final Path storageDir;
     private final Object lock = new Object();
-    private final List<String> corruptedFileWarnings = new ArrayList<>();
+    private final Set<String> corruptedFileWarnings = new LinkedHashSet<>();
 
     public FileComplaintRepository() {
         this(FileStorageUtil.resolveDefaultDataDir("complaints"));
@@ -253,8 +255,9 @@ public class FileComplaintRepository implements ComplaintRepository {
         String resolvedAtStr = p.getProperty("resolvedAt");
         String resolutionNotes = p.getProperty("resolutionNotes", "");
 
-        if (id == null || reporterId == null || title == null || categoryStr == null ||
-            severityStr == null || priorityStr == null || statusStr == null) {
+        if (id == null || reporterId == null || title == null || categoryStr == null
+                || location == null || description == null
+                || severityStr == null || priorityStr == null || statusStr == null) {
             throw new IllegalArgumentException("Missing mandatory complaint fields in properties");
         }
 

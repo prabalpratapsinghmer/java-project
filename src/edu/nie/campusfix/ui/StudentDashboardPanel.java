@@ -271,7 +271,7 @@ public class StudentDashboardPanel extends JPanel {
         JLabel searchLbl = new JLabel("Search:");
         searchLbl.setFont(UITheme.FONT_SMALL_BOLD);
         UITheme.styleTextField(searchField);
-        searchField.setPreferredSize(new Dimension(210, 36));
+        searchField.setPreferredSize(new Dimension(UITheme.s(210), UITheme.s(38)));
         searchField.setToolTipText("Search by ID, title, location, or description");
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e) { refreshFilteredTable(); }
@@ -282,13 +282,13 @@ public class StudentDashboardPanel extends JPanel {
         categoryFilter.addItem("All Categories");
         for (Category c : Category.values()) categoryFilter.addItem(c);
         UITheme.styleComboBox(categoryFilter);
-        categoryFilter.setPreferredSize(new Dimension(175, 36));
+        categoryFilter.setPreferredSize(new Dimension(UITheme.s(182), UITheme.s(38)));
         categoryFilter.addActionListener(e -> refreshFilteredTable());
 
         statusFilter.addItem("All Statuses");
         for (ComplaintStatus s : ComplaintStatus.values()) statusFilter.addItem(s);
         UITheme.styleComboBox(statusFilter);
-        statusFilter.setPreferredSize(new Dimension(145, 36));
+        statusFilter.setPreferredSize(new Dimension(UITheme.s(160), UITheme.s(38)));
         statusFilter.addActionListener(e -> refreshFilteredTable());
 
         ModernButton resetBtn = new ModernButton("Reset", ModernButton.Style.SECONDARY);
@@ -343,24 +343,24 @@ public class StudentDashboardPanel extends JPanel {
     }
 
     private void configureRecentColumns() {
-        recentTable.getColumnModel().getColumn(0).setPreferredWidth(80);
-        recentTable.getColumnModel().getColumn(1).setPreferredWidth(210);
-        recentTable.getColumnModel().getColumn(2).setPreferredWidth(140);
-        recentTable.getColumnModel().getColumn(3).setPreferredWidth(150);
-        recentTable.getColumnModel().getColumn(4).setPreferredWidth(100);
-        recentTable.getColumnModel().getColumn(5).setPreferredWidth(110);
-        recentTable.getColumnModel().getColumn(6).setPreferredWidth(135);
+        recentTable.getColumnModel().getColumn(0).setPreferredWidth(UITheme.s(85));
+        recentTable.getColumnModel().getColumn(1).setPreferredWidth(UITheme.s(210));
+        recentTable.getColumnModel().getColumn(2).setPreferredWidth(UITheme.s(140));
+        recentTable.getColumnModel().getColumn(3).setPreferredWidth(UITheme.s(150));
+        recentTable.getColumnModel().getColumn(4).setPreferredWidth(UITheme.s(100));
+        recentTable.getColumnModel().getColumn(5).setPreferredWidth(UITheme.s(110));
+        recentTable.getColumnModel().getColumn(6).setPreferredWidth(UITheme.s(140));
     }
 
     private void configureFullColumns() {
-        complaintsTable.getColumnModel().getColumn(0).setPreferredWidth(80);
-        complaintsTable.getColumnModel().getColumn(1).setPreferredWidth(190);
-        complaintsTable.getColumnModel().getColumn(2).setPreferredWidth(135);
-        complaintsTable.getColumnModel().getColumn(3).setPreferredWidth(140);
-        complaintsTable.getColumnModel().getColumn(4).setPreferredWidth(100);
-        complaintsTable.getColumnModel().getColumn(5).setPreferredWidth(110);
-        complaintsTable.getColumnModel().getColumn(6).setPreferredWidth(130);
-        complaintsTable.getColumnModel().getColumn(7).setPreferredWidth(130);
+        complaintsTable.getColumnModel().getColumn(0).setPreferredWidth(UITheme.s(85));
+        complaintsTable.getColumnModel().getColumn(1).setPreferredWidth(UITheme.s(190));
+        complaintsTable.getColumnModel().getColumn(2).setPreferredWidth(UITheme.s(135));
+        complaintsTable.getColumnModel().getColumn(3).setPreferredWidth(UITheme.s(140));
+        complaintsTable.getColumnModel().getColumn(4).setPreferredWidth(UITheme.s(100));
+        complaintsTable.getColumnModel().getColumn(5).setPreferredWidth(UITheme.s(110));
+        complaintsTable.getColumnModel().getColumn(6).setPreferredWidth(UITheme.s(130));
+        complaintsTable.getColumnModel().getColumn(7).setPreferredWidth(UITheme.s(140));
     }
 
     public void loadData() {
@@ -439,8 +439,13 @@ public class StudentDashboardPanel extends JPanel {
             return;
         }
         Complaint selected = backingList.get(modelRow);
-        ComplaintDetailDialog dlg = new ComplaintDetailDialog(parentFrame, selected, priorityService);
-        dlg.setVisible(true);
+        try {
+            Complaint fresh = complaintService.getComplaintForUser(currentUser, selected.getId());
+            ComplaintDetailDialog dlg = new ComplaintDetailDialog(parentFrame, fresh, priorityService);
+            dlg.setVisible(true);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Access Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private String shortId(String id) {

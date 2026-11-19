@@ -769,36 +769,40 @@ CampusFix avoids the default, outdated Java Swing "Metal" look by implementing a
 
 | Token Name | Hex Code | Visual Swatch / Purpose |
 |---|---|---|
-| `BG_CANVAS` | `#0F172A` | Deep dark slate main application canvas background |
-| `CARD_BG` | `#1E293B` | Elevated card and container background |
-| `CARD_BORDER` | `#334155` | Subtle border for visual separation |
-| `TEXT_PRIMARY` | `#F8FAFC` | High-contrast off-white primary text |
-| `TEXT_MUTED` | `#94A3B8` | Subdued slate text for subtitles, labels, and timestamps |
-| `ACCENT_BLUE` | `#4F46E5` | Vibrant indigo for primary action buttons and active indicators |
-| `STATUS_PENDING` | `#F59E0B` | Amber warning badge |
-| `STATUS_ASSIGNED` | `#3B82F6` | Sky blue badge |
-| `STATUS_IN_PROGRESS` | `#8B5CF6` | Purple badge |
-| `STATUS_RESOLVED` | `#10B981` | Emerald green success badge |
-| `PRIORITY_CRITICAL` | `#EF4444` | Crimson red urgent hazard badge |
+| `BG_CANVAS` | `#F8FAFC` | Crisp light-slate main application canvas background |
+| `BG_CARD` | `#FFFFFF` | Elevated white surface card and container background |
+| `BORDER_CARD` | `#E2E8F0` | Subtle slate border for clean card separation |
+| `SIDEBAR_BG` | `#0F172A` | Deep dark-slate workspace navigation sidebar |
+| `TEXT_PRIMARY` | `#0F172A` | High-contrast dark slate primary typography |
+| `TEXT_MUTED` | `#64748B` | Subdued slate text for subtitles, labels, and timestamps |
+| `PRIMARY` | `#4F46E5` | Vibrant indigo for primary action buttons and active indicators |
+| `WARNING` | `#D97706` | Amber warning accent |
+| `INFO` | `#0284C7` | Sky blue in-progress accent |
+| `SUCCESS` | `#059669` | Emerald green resolved/export accent |
+| `DANGER` | `#DC2626` | Crimson red critical/overdue hazard accent |
+
+#### Cross-Platform & HiDPI Rendering
+- **Deterministic Cross-Platform L&F:** Uses `UIManager.getCrossPlatformLookAndFeelClassName()` with custom lightweight UI delegates (`BasicComboBoxUI`, `BasicScrollBarUI`, `BasicTextFieldUI`, `ModernTable.DirectPillBadgeRenderer`) to avoid OS dark-theme (Linux GTK) contrast collisions.
+- **Automatic HiDPI Scaling:** `run.sh` and `UITheme.UI_SCALE` automatically detect 2K/4K HiDPI displays (`UITheme.s(int px)`) so all cards, inputs, tables, and fonts render large and sharp across Linux, Windows, and macOS.
 
 #### Custom Components
-- **`ModernButton`:** Rounded anti-aliased button with smooth background transitions on mouse hover, custom focus rings, and dark-theme accents.
-- **`ModernTable`:** Custom Swing table with alternating row striping, fixed header heights, custom cell renderers for status badges, and disabled cell editing.
+- **`ModernButton`:** Rounded anti-aliased button with hover/press feedback, dynamic font-metric width calculation, and active sidebar left-accent indicator.
+- **`ModernTable`:** Custom sortable Swing table (`TableRowSorter`) with alternating row striping, custom header renderer with sort arrows, and direct-painted `DirectPillBadgeRenderer` for Priority/Status/Severity cells.
 - **`PillBadge`:** Self-sizing capsule badge component rendering semantic background tints and status colors with crisp rounded borders.
-- **`StatCard`:** Reusable KPI metrics card displaying an accent-colored numeric total, descriptive title, and contextual status badge.
+- **`StatCard`:** Reusable KPI metrics card displaying a top accent bar, non-truncating uppercase label, and bold numeric total.
 
 ---
 
 ## 7. Source Code Directory & Complete Class Map
 
-The codebase comprises **44 classes, interfaces, and enums** organized into 8 clean packages under `edu.nie.campusfix`:
+The codebase comprises **50 classes, interfaces, and enums** organized into 8 clean packages under `edu.nie.campusfix`:
 
 ```text
 src/edu/nie/campusfix/
 ├── Main.java                          # Main entry point & DI composition root
 ├── enums/                             # Domain enumerations
-│   ├── AuditActionType.java           # CREATED, ASSIGNED, STATUS_CHANGE, RESOLVED...
-│   ├── Category.java                  # ELECTRICAL, PLUMBING, SAFETY, HVAC...
+│   ├── AuditActionType.java           # CREATED, ASSIGNED, REASSIGNED, WORK_STARTED, RESOLVED
+│   ├── Category.java                  # ELECTRICAL, PLUMBING, CLASSROOM_EQUIPMENT, LABORATORY_EQUIPMENT, HOSTEL_MAINTENANCE, FURNITURE, SANITATION, SAFETY, OTHER
 │   ├── ComplaintStatus.java           # PENDING, ASSIGNED, IN_PROGRESS, RESOLVED
 │   ├── Priority.java                  # LOW, MEDIUM, HIGH, CRITICAL
 │   ├── Role.java                      # STUDENT, ADMIN, TECHNICIAN

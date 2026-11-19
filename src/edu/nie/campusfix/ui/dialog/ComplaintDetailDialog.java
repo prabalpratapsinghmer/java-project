@@ -88,7 +88,7 @@ public class ComplaintDetailDialog extends JDialog {
         idLbl.setForeground(UITheme.TEXT_MUTED);
 
         ModernButton copyBtn = new ModernButton("Copy ID", ModernButton.Style.GHOST);
-        copyBtn.setPreferredSize(new Dimension(82, 26));
+        copyBtn.setPreferredSize(new Dimension(UITheme.s(88), UITheme.s(28)));
         copyBtn.addActionListener(e -> {
             Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(complaint.getId()), null);
             copyBtn.setText("Copied!");
@@ -253,16 +253,16 @@ public class ComplaintDetailDialog extends JDialog {
         }
 
         ModernTable auditTable = new ModernTable(model);
-        auditTable.setRowHeight(36);
-        auditTable.getColumnModel().getColumn(0).setPreferredWidth(145);
-        auditTable.getColumnModel().getColumn(1).setPreferredWidth(130);
-        auditTable.getColumnModel().getColumn(2).setPreferredWidth(120);
-        auditTable.getColumnModel().getColumn(3).setPreferredWidth(75);
-        auditTable.getColumnModel().getColumn(4).setPreferredWidth(230);
+        auditTable.setRowHeight(UITheme.s(38));
+        auditTable.getColumnModel().getColumn(0).setPreferredWidth(UITheme.s(145));
+        auditTable.getColumnModel().getColumn(1).setPreferredWidth(UITheme.s(130));
+        auditTable.getColumnModel().getColumn(2).setPreferredWidth(UITheme.s(120));
+        auditTable.getColumnModel().getColumn(3).setPreferredWidth(UITheme.s(75));
+        auditTable.getColumnModel().getColumn(4).setPreferredWidth(UITheme.s(230));
 
         JScrollPane scrollTable = new JScrollPane(auditTable);
         UITheme.styleScrollPane(scrollTable);
-        scrollTable.setPreferredSize(new Dimension(200, 170));
+        scrollTable.setPreferredSize(new Dimension(UITheme.s(200), UITheme.s(175)));
         auditCard.add(scrollTable, BorderLayout.CENTER);
         contentPanel.add(auditCard);
 

@@ -11,7 +11,9 @@ This is an academic project for the subject "Object-Oriented Programming with Ja
 
 The application MUST be implemented entirely using Java and its standard library.
 
-Do not create a prototype, mock application, incomplete demonstration, or disconnected modules. Implement a complete application whose advertised features actually work.
+Do not create a prototype,
+
+mock application, incomplete demonstration, or disconnected modules. Implement a complete application whose advertised features actually work.
 
 You are responsible for the entire development lifecycle, from initial architecture to final verification.
 

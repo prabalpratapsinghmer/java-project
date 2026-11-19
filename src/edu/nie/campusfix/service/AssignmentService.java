@@ -53,6 +53,11 @@ public class AssignmentService {
             throw new ValidationException("Technician " + technician.getFullName() + " is currently inactive.");
         }
 
+        if (complaint.getStatus() == edu.nie.campusfix.enums.ComplaintStatus.ASSIGNED
+                && technician.getId().equals(complaint.getAssignedTechnicianId())) {
+            throw new ValidationException("Complaint is already assigned to " + technician.getFullName() + ".");
+        }
+
         complaint.assignTechnician(technician, assigner, note);
         return complaintRepository.save(complaint);
     }

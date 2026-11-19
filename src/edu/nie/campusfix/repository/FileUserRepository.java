@@ -16,10 +16,12 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * File-based implementation of UserRepository storing user records as Properties files.
@@ -28,7 +30,7 @@ import java.util.Properties;
 public class FileUserRepository implements UserRepository {
     private final Path storageDir;
     private final Object lock = new Object();
-    private final List<String> corruptedFileWarnings = new ArrayList<>();
+    private final Set<String> corruptedFileWarnings = new LinkedHashSet<>();
 
     public FileUserRepository() {
         this(FileStorageUtil.resolveDefaultDataDir("users"));
@@ -234,7 +236,8 @@ public class FileUserRepository implements UserRepository {
         String roleStr = p.getProperty("role");
         String createdAtStr = p.getProperty("createdAt");
 
-        if (id == null || username == null || passwordHash == null || roleStr == null) {
+        if (id == null || username == null || passwordHash == null || roleStr == null
+                || fullName == null || email == null) {
             throw new IllegalArgumentException("Missing mandatory user fields in properties");
         }
 
