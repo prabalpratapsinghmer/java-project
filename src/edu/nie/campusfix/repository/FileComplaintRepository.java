@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -23,14 +24,15 @@ import java.util.Properties;
 /**
  * File-based implementation of ComplaintRepository storing complaints and their complete
  * audit histories in individual properties files.
- * Provides atomic persistence and corrupted file isolation.
+ * Provides atomic persistence, overwrite protection, and corrupted file isolation.
  */
 public class FileComplaintRepository implements ComplaintRepository {
     private final Path storageDir;
     private final Object lock = new Object();
+    private final List<String> corruptedFileWarnings = new ArrayList<>();
 
     public FileComplaintRepository() {
-        this(Path.of("data/complaints"));
+        this(FileStorageUtil.resolveDefaultDataDir("complaints"));
     }
 
     public FileComplaintRepository(Path storageDir) {
@@ -57,7 +59,9 @@ public class FileComplaintRepository implements ComplaintRepository {
                 Properties props = FileStorageUtil.loadProperties(file);
                 return Optional.ofNullable(mapPropertiesToComplaint(props));
             } catch (Exception e) {
-                System.err.println("[CampusFix] Warning: Corrupted complaint record for id=" + id + ": " + e.getMessage());
+                String msg = "Corrupted complaint record for id=" + id + ": " + e.getMessage();
+                System.err.println("[CampusFix] Warning: " + msg);
+                corruptedFileWarnings.add(msg);
                 FileStorageUtil.quarantineCorruptFile(file);
                 return Optional.empty();
             }
@@ -77,11 +81,19 @@ public class FileComplaintRepository implements ComplaintRepository {
                         complaints.add(complaint);
                     }
                 } catch (Exception e) {
-                    System.err.println("[CampusFix] Warning: Skipping malformed complaint file " + file.getFileName() + ": " + e.getMessage());
+                    String msg = "Skipping malformed complaint file " + file.getFileName() + ": " + e.getMessage();
+                    System.err.println("[CampusFix] Warning: " + msg);
+                    corruptedFileWarnings.add(msg);
                     FileStorageUtil.quarantineCorruptFile(file);
                 }
             }
             return complaints;
+        }
+    }
+
+    public List<String> getCorruptedFileWarnings() {
+        synchronized (lock) {
+            return Collections.unmodifiableList(new ArrayList<>(corruptedFileWarnings));
         }
     }
 
@@ -130,6 +142,20 @@ public class FileComplaintRepository implements ComplaintRepository {
                 }
             }
             return result;
+        }
+    }
+
+    @Override
+    public Complaint create(Complaint complaint) {
+        Objects.requireNonNull(complaint, "Complaint cannot be null");
+        synchronized (lock) {
+            Path file = FileStorageUtil.resolveSafePath(storageDir, complaint.getId(), ".properties");
+            if (Files.exists(file)) {
+                throw new StorageException("Complaint record already exists with ID: " + complaint.getId() + ". Refusing to overwrite.");
+            }
+            Properties props = mapComplaintToProperties(complaint);
+            FileStorageUtil.savePropertiesAtomically(file, props, "CampusFix Complaint: " + complaint.getId());
+            return complaint;
         }
     }
 

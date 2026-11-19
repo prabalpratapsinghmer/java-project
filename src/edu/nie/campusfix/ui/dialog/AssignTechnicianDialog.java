@@ -1,6 +1,6 @@
 package edu.nie.campusfix.ui.dialog;
 
-import edu.nie.campusfix.exception.CampusFixException;
+import edu.nie.campusfix.enums.ComplaintStatus;
 import edu.nie.campusfix.model.Complaint;
 import edu.nie.campusfix.model.TechnicianUser;
 import edu.nie.campusfix.model.User;
@@ -14,24 +14,31 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.KeyEvent;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 /**
- * Modal dialog for assigning or reassigning a maintenance complaint to a technician.
- * Displays real-time technician workload to facilitate balanced assignment.
+ * Modal dialog for assigning or reassigning a maintenance complaint to an active technician.
+ * Uses exact ID-based workload lookup and highlights specialization matches.
  */
 @SuppressWarnings({"serial", "this-escape"})
 public class AssignTechnicianDialog extends JDialog {
@@ -43,40 +50,56 @@ public class AssignTechnicianDialog extends JDialog {
 
     private final JComboBox<TechnicianItem> technicianCombo = new JComboBox<>();
     private final JTextField noteField = new JTextField();
+    private final ModernButton assignBtn;
+    private final ModernButton cancelBtn = new ModernButton("Cancel", ModernButton.Style.SECONDARY);
 
-    private record TechnicianItem(TechnicianUser tech, long activeTasks) {
+    private record TechnicianItem(TechnicianUser tech, long activeTasks, boolean specialtyMatch) {
         @Override
         public String toString() {
-            return tech.getFullName() + " [" + tech.getSpecialization().getDisplayName() + "] – Active Tasks: " + activeTasks;
+            String rec = specialtyMatch ? " ★ Match" : "";
+            return tech.getFullName() + " [" + tech.getSpecialization().getDisplayName() + "]"
+                    + rec + " — Active Tasks: " + activeTasks;
         }
     }
 
     public AssignTechnicianDialog(JFrame parent, ComplaintService complaintService,
                                   UserRepository userRepository, ReportService reportService,
                                   Complaint complaint, User admin) {
-        super(parent, "Assign Maintenance Technician", true);
+        super(parent, complaint.getStatus() == ComplaintStatus.PENDING
+                ? "Assign Maintenance Technician" : "Reassign Maintenance Technician", true);
         this.complaintService = complaintService;
         this.complaint = complaint;
         this.admin = admin;
 
-        setSize(540, 360);
+        boolean isReassign = complaint.getStatus() != ComplaintStatus.PENDING;
+        this.assignBtn = new ModernButton(isReassign ? "Confirm Reassignment" : "Assign Technician", ModernButton.Style.PRIMARY);
+
+        setSize(UITheme.s(640), UITheme.s(420));
+        setMinimumSize(new Dimension(UITheme.s(520), UITheme.s(360)));
         setLocationRelativeTo(parent);
         getContentPane().setBackground(UITheme.BG_CANVAS);
         setLayout(new BorderLayout());
+
+        getRootPane().registerKeyboardAction(
+                e -> dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
 
         // Header
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(Color.WHITE);
         header.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, UITheme.BORDER_CARD),
-                BorderFactory.createEmptyBorder(16, 20, 16, 20)
+                BorderFactory.createEmptyBorder(16, 22, 16, 22)
         ));
 
-        JLabel titleLbl = new JLabel("Assign Complaint");
+        JLabel titleLbl = new JLabel(isReassign ? "Reassign Complaint" : "Assign Complaint");
         titleLbl.setFont(UITheme.FONT_TITLE);
         titleLbl.setForeground(UITheme.TEXT_PRIMARY);
 
-        JLabel subLbl = new JLabel("Task: " + complaint.getTitle() + " (" + complaint.getCategory().getDisplayName() + ")");
+        JLabel subLbl = new JLabel("Complaint: " + complaint.getTitle()
+                + " (" + complaint.getCategory().getDisplayName() + " • " + complaint.getPriority().getDisplayName() + " Priority)");
         subLbl.setFont(UITheme.FONT_SMALL);
         subLbl.setForeground(UITheme.TEXT_MUTED);
 
@@ -89,65 +112,96 @@ public class AssignTechnicianDialog extends JDialog {
         header.add(headerBox, BorderLayout.WEST);
         add(header, BorderLayout.NORTH);
 
-        // Form
-        JPanel formCard = UITheme.createCardPanel();
+        // Form Card
+        JPanel formCard = UITheme.createCardPanel(18, 20);
         formCard.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.insets = new Insets(8, 6, 8, 6);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Populate technicians with workload counts
         ReportService.ComplaintSummaryReport report = reportService.generateSummary();
-        Map<String, Long> workloads = report.technicianWorkload();
-        List<TechnicianUser> technicians = userRepository.findAllTechnicians();
+        Map<String, Long> activeByTechId = report.activeWorkloadByTechId();
+        List<TechnicianUser> activeTechs = userRepository.findAllTechnicians().stream()
+                .filter(TechnicianUser::isActive)
+                .sorted(Comparator
+                        .comparing((TechnicianUser t) -> t.getSpecialization() != complaint.getCategory())
+                        .thenComparingLong(t -> activeByTechId.getOrDefault(t.getId(), 0L))
+                        .thenComparing(TechnicianUser::getFullName))
+                .toList();
 
-        for (TechnicianUser t : technicians) {
-            long active = 0;
-            for (Map.Entry<String, Long> entry : workloads.entrySet()) {
-                if (entry.getKey().startsWith(t.getFullName())) {
-                    active = entry.getValue();
-                    break;
-                }
-            }
-            technicianCombo.addItem(new TechnicianItem(t, active));
+        for (TechnicianUser t : activeTechs) {
+            long active = activeByTechId.getOrDefault(t.getId(), 0L);
+            boolean match = t.getSpecialization() == complaint.getCategory();
+            technicianCombo.addItem(new TechnicianItem(t, active, match));
         }
 
         UITheme.styleComboBox(technicianCombo);
         UITheme.styleTextField(noteField);
+        noteField.setToolTipText("Optional instructions or dispatch notes for the technician");
 
-        gbc.gridy = 0; gbc.gridx = 0; gbc.weightx = 0.3;
-        JLabel techLbl = new JLabel("Technician *");
-        techLbl.setFont(UITheme.FONT_BOLD);
-        techLbl.setForeground(UITheme.TEXT_PRIMARY);
-        formCard.add(techLbl, gbc);
+        int row = 0;
+        if (isReassign && !complaint.getAssignedTechnicianName().isBlank()) {
+            gbc.gridy = row++;
+            gbc.gridx = 0;
+            gbc.gridwidth = 2;
+            gbc.weightx = 1.0;
+            JLabel currentLbl = new JLabel("Currently assigned to: " + complaint.getAssignedTechnicianName()
+                    + " (Status: " + complaint.getStatus().getDisplayName() + ")");
+            currentLbl.setFont(UITheme.FONT_SMALL_BOLD);
+            currentLbl.setForeground(UITheme.WARNING);
+            formCard.add(currentLbl, gbc);
+            gbc.gridwidth = 1;
+        }
 
-        gbc.gridx = 1; gbc.weightx = 0.7;
-        formCard.add(technicianCombo, gbc);
+        if (activeTechs.isEmpty()) {
+            gbc.gridy = row++;
+            gbc.gridx = 0;
+            gbc.gridwidth = 2;
+            gbc.weightx = 1.0;
+            JLabel emptyLbl = new JLabel("<html>No active technicians are registered yet. Please register or activate a technician in the <b>Technicians</b> section first.</html>");
+            emptyLbl.setFont(UITheme.FONT_REGULAR);
+            emptyLbl.setForeground(UITheme.DANGER);
+            formCard.add(emptyLbl, gbc);
+            assignBtn.setEnabled(false);
+        } else {
+            gbc.gridy = row;
+            gbc.gridx = 0;
+            gbc.weightx = 0.28;
+            JLabel techLbl = new JLabel("Select Technician *");
+            techLbl.setFont(UITheme.FONT_SMALL_BOLD);
+            techLbl.setForeground(UITheme.TEXT_PRIMARY);
+            formCard.add(techLbl, gbc);
 
-        gbc.gridy = 1; gbc.gridx = 0; gbc.weightx = 0.3;
-        JLabel noteLbl = new JLabel("Assignment Note");
-        noteLbl.setFont(UITheme.FONT_BOLD);
-        noteLbl.setForeground(UITheme.TEXT_PRIMARY);
-        formCard.add(noteLbl, gbc);
+            gbc.gridx = 1;
+            gbc.weightx = 0.72;
+            formCard.add(technicianCombo, gbc);
 
-        gbc.gridx = 1; gbc.weightx = 0.7;
-        formCard.add(noteField, gbc);
+            row++;
+            gbc.gridy = row;
+            gbc.gridx = 0;
+            gbc.weightx = 0.28;
+            JLabel noteLbl = new JLabel("Dispatch Note");
+            noteLbl.setFont(UITheme.FONT_SMALL_BOLD);
+            noteLbl.setForeground(UITheme.TEXT_PRIMARY);
+            formCard.add(noteLbl, gbc);
+
+            gbc.gridx = 1;
+            gbc.weightx = 0.72;
+            formCard.add(noteField, gbc);
+        }
 
         JPanel centerWrapper = new JPanel(new BorderLayout());
         centerWrapper.setOpaque(false);
-        centerWrapper.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
+        centerWrapper.setBorder(BorderFactory.createEmptyBorder(16, 22, 16, 22));
         centerWrapper.add(formCard, BorderLayout.CENTER);
         add(centerWrapper, BorderLayout.CENTER);
 
         // Footer
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 14, 12));
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 12));
         footer.setBackground(Color.WHITE);
         footer.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_CARD));
 
-        ModernButton cancelBtn = new ModernButton("Cancel", ModernButton.Style.SECONDARY);
         cancelBtn.addActionListener(e -> dispose());
-
-        ModernButton assignBtn = new ModernButton("Assign", ModernButton.Style.PRIMARY);
         assignBtn.addActionListener(e -> handleAssign());
 
         footer.add(cancelBtn);
@@ -158,21 +212,50 @@ public class AssignTechnicianDialog extends JDialog {
     private void handleAssign() {
         TechnicianItem selected = (TechnicianItem) technicianCombo.getSelectedItem();
         if (selected == null) {
-            JOptionPane.showMessageDialog(this, "No technician selected. Please register a technician first.",
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "No active technician selected.", "Assignment Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        try {
-            complaintService.assignTechnician(admin, complaint.getId(), selected.tech().getId(), noteField.getText().trim());
-            assigned = true;
-            JOptionPane.showMessageDialog(this,
-                    "Complaint assigned to " + selected.tech().getFullName() + " successfully.",
-                    "Success", JOptionPane.INFORMATION_MESSAGE);
-            dispose();
-        } catch (CampusFixException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        if (complaint.getStatus() == ComplaintStatus.IN_PROGRESS) {
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "This complaint is currently IN PROGRESS with " + complaint.getAssignedTechnicianName() + ".\n"
+                            + "Reassigning it to " + selected.tech().getFullName() + " will reset status to ASSIGNED.\n\nProceed?",
+                    "Confirm Reassignment", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
         }
+
+        String note = noteField.getText().trim();
+        assignBtn.setEnabled(false);
+        cancelBtn.setEnabled(false);
+        assignBtn.setText("Saving...");
+
+        new SwingWorker<Complaint, Void>() {
+            @Override
+            protected Complaint doInBackground() {
+                return complaintService.assignTechnician(admin, complaint.getId(), selected.tech().getId(), note);
+            }
+
+            @Override
+            protected void done() {
+                assignBtn.setEnabled(true);
+                cancelBtn.setEnabled(true);
+                try {
+                    get();
+                    assigned = true;
+                    JOptionPane.showMessageDialog(AssignTechnicianDialog.this,
+                            "Complaint assigned to " + selected.tech().getFullName() + " successfully.",
+                            "Assignment Confirmed", JOptionPane.INFORMATION_MESSAGE);
+                    dispose();
+                } catch (InterruptedException | ExecutionException ex) {
+                    assignBtn.setText("Assign Technician");
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    JOptionPane.showMessageDialog(AssignTechnicianDialog.this,
+                            cause.getMessage(), "Assignment Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
     }
 
     public boolean isAssigned() {

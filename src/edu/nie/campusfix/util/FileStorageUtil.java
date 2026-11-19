@@ -26,9 +26,37 @@ public final class FileStorageUtil {
     }
 
     /**
+     * Resolves a writable default data directory: uses local ./data/<subDir> when the
+     * working directory is writable, or falls back to <user.home>/.campusfix/data/<subDir>
+     * when launched from a read-only installation folder (such as /opt/campusfix).
+     */
+    public static Path resolveDefaultDataDir(String subDir) {
+        Path localDir = Path.of("data", subDir);
+        try {
+            Path probeParent = localDir.toAbsolutePath().normalize().getParent();
+            if (probeParent != null) {
+                Path existingAncestor = probeParent;
+                while (existingAncestor != null && !Files.exists(existingAncestor)) {
+                    existingAncestor = existingAncestor.getParent();
+                }
+                if (existingAncestor != null && Files.isWritable(existingAncestor)) {
+                    return localDir;
+                }
+            }
+        } catch (SecurityException e) {
+            System.err.println("[CampusFix] Local data directory check failed, using user home fallback: " + e.getMessage());
+        }
+        String userHome = System.getProperty("user.home", ".");
+        return Path.of(userHome, ".campusfix", "data", subDir);
+    }
+
+    /**
      * Guarantees target directory exists.
      */
     public static Path ensureDirectory(Path dir) {
+        if (dir == null) {
+            return null;
+        }
         try {
             if (!Files.exists(dir)) {
                 Files.createDirectories(dir);
@@ -75,7 +103,10 @@ public final class FileStorageUtil {
         } catch (IOException e) {
             try {
                 Files.deleteIfExists(tempPath);
-            } catch (IOException ignored) {}
+            } catch (IOException cleanupEx) {
+                e.addSuppressed(cleanupEx);
+                System.err.println("[CampusFix] Failed to remove temporary file " + tempPath + ": " + cleanupEx.getMessage());
+            }
             throw new StorageException("Failed to atomically save properties to: " + targetPath, e);
         }
     }

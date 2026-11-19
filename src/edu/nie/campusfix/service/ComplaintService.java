@@ -7,21 +7,23 @@ import edu.nie.campusfix.enums.Role;
 import edu.nie.campusfix.enums.Severity;
 import edu.nie.campusfix.exception.ResourceNotFoundException;
 import edu.nie.campusfix.exception.UnauthorizedException;
-import edu.nie.campusfix.exception.ValidationException;
 import edu.nie.campusfix.model.Complaint;
 import edu.nie.campusfix.model.User;
 import edu.nie.campusfix.repository.ComplaintRepository;
 import edu.nie.campusfix.util.ValidationUtil;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
+
 /**
  * Core business service orchestrating complaint lifecycle operations,
- * authorization validation, searching, and filtering.
+ * strict service-layer authorization, duplicate detection, searching, and filtering.
  */
 public class ComplaintService {
+    public static final String FILTER_UNASSIGNED = "__UNASSIGNED__";
+
     private final ComplaintRepository complaintRepository;
     private final PriorityService priorityService;
     private final DuplicateDetectionService duplicateDetectionService;
@@ -46,48 +48,39 @@ public class ComplaintService {
         Objects.requireNonNull(category, "Category cannot be null");
         Objects.requireNonNull(severity, "Severity cannot be null");
 
+        if (reporter.getRole() == Role.TECHNICIAN) {
+            throw new UnauthorizedException("Maintenance personnel cannot submit new complaints from a technician account.");
+        }
+
         ValidationUtil.validateComplaintFields(title, location, description);
 
         Priority priority = priorityService.calculatePriority(severity, category);
         Complaint complaint = Complaint.createNew(reporter.getId(), reporter.getFullName(),
                 title.trim(), category, location.trim(), description.trim(), severity, priority);
 
-        return complaintRepository.save(complaint);
+        return complaintRepository.create(complaint);
     }
 
     /**
-     * Submits a public maintenance complaint without requiring user account credentials.
-     * Open to children, campus visitors, parents, and community members.
-     */
-    public Complaint submitPublicComplaint(String reporterName, String contact, String title,
-                                          Category category, String location, String description,
-                                          Severity severity) {
-        if (reporterName == null || reporterName.trim().length() < 2 || reporterName.trim().length() > 100) {
-            throw new ValidationException("Reporter name must be between 2 and 100 characters.");
-        }
-        ValidationUtil.validateComplaintFields(title, location, description);
-        Objects.requireNonNull(category, "Category cannot be null");
-        Objects.requireNonNull(severity, "Severity cannot be null");
-
-        String contactSuffix = (contact == null || contact.trim().isEmpty()) ? "" : " (" + contact.trim() + ")";
-        String formattedReporterName = reporterName.trim() + contactSuffix;
-        String reporterId = "public_" + UUID.randomUUID().toString().substring(0, 8);
-
-        Priority priority = priorityService.calculatePriority(severity, category);
-        Complaint complaint = Complaint.createNew(reporterId, formattedReporterName,
-                title.trim(), category, location.trim(), description.trim(), severity, priority);
-
-        return complaintRepository.save(complaint);
-    }
-    /**
-     * Identifies potential duplicate complaints for a location and category.
+     * Identifies potential duplicate complaints for a location and category within the last 7 days.
      */
     public List<Complaint> checkPotentialDuplicates(String location, Category category) {
         return duplicateDetectionService.findPotentialDuplicates(location, category);
     }
 
     /**
-     * Assigns a technician to a complaint. Delegates to AssignmentService.
+     * Returns all active unresolved duplicate complaint clusters for administrator review.
+     */
+    public List<DuplicateDetectionService.DuplicateGroup> getPotentialDuplicateGroups(User viewer) {
+        Objects.requireNonNull(viewer, "Viewer cannot be null");
+        if (!viewer.canAssignComplaints()) {
+            throw new UnauthorizedException("Only administrators can review campus-wide duplicate complaint groups.");
+        }
+        return duplicateDetectionService.findAllPotentialDuplicateGroups();
+    }
+
+    /**
+     * Assigns or reassigns a technician to a complaint. Delegates to AssignmentService.
      */
     public Complaint assignTechnician(User assigner, String complaintId, String technicianId, String note) {
         return assignmentService.assignTechnician(assigner, complaintId, technicianId, note);
@@ -99,11 +92,13 @@ public class ComplaintService {
      */
     public Complaint startWork(User actor, String complaintId, String note) {
         Objects.requireNonNull(actor, "Actor cannot be null");
-        Objects.requireNonNull(complaintId, "Complaint ID cannot be null");
+        ValidationUtil.validateId(complaintId, "Complaint ID");
+        ValidationUtil.validateOptionalText(note, "Work note", 500);
 
         Complaint complaint = getComplaintById(complaintId);
 
-        boolean isAssignedTech = actor.getId().equals(complaint.getAssignedTechnicianId());
+        boolean isAssignedTech = actor.getRole() == Role.TECHNICIAN
+                && actor.getId().equals(complaint.getAssignedTechnicianId());
         boolean isAdmin = actor.canAssignComplaints();
 
         if (!isAssignedTech && !isAdmin) {
@@ -120,13 +115,13 @@ public class ComplaintService {
      */
     public Complaint resolveComplaint(User actor, String complaintId, String resolutionNotes) {
         Objects.requireNonNull(actor, "Actor cannot be null");
-        Objects.requireNonNull(complaintId, "Complaint ID cannot be null");
-
+        ValidationUtil.validateId(complaintId, "Complaint ID");
         ValidationUtil.validateResolutionNotes(resolutionNotes);
 
         Complaint complaint = getComplaintById(complaintId);
 
-        boolean isAssignedTech = actor.getId().equals(complaint.getAssignedTechnicianId());
+        boolean isAssignedTech = actor.getRole() == Role.TECHNICIAN
+                && actor.getId().equals(complaint.getAssignedTechnicianId());
         boolean isAdmin = actor.canAssignComplaints();
 
         if (!isAssignedTech && !isAdmin) {
@@ -138,35 +133,61 @@ public class ComplaintService {
     }
 
     /**
-     * Retrieves a single complaint by ID.
+     * Retrieves a single complaint by ID (internal/service lookup).
      */
     public Complaint getComplaintById(String id) {
+        ValidationUtil.validateId(id, "Complaint ID");
         return complaintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Complaint not found with ID: " + id));
     }
 
     /**
-     * Returns all complaints stored in the repository.
+     * Retrieves a single complaint enforcing role-based visibility rules.
      */
-    public List<Complaint> getAllComplaints() {
-        return complaintRepository.findAll();
+    public Complaint getComplaintForUser(User viewer, String id) {
+        Objects.requireNonNull(viewer, "Viewer cannot be null");
+        Complaint complaint = getComplaintById(id);
+
+        if (viewer.getRole() == Role.ADMIN) {
+            return complaint;
+        }
+        if (viewer.getRole() == Role.STUDENT && viewer.getId().equals(complaint.getReporterId())) {
+            return complaint;
+        }
+        if (viewer.getRole() == Role.TECHNICIAN && viewer.getId().equals(complaint.getAssignedTechnicianId())) {
+            return complaint;
+        }
+        throw new UnauthorizedException("You are not authorized to view this complaint.");
     }
 
     /**
-     * Retrieves complaints visible to a specific user according to their role.
+     * Returns all complaints stored in the repository sorted newest-first.
+     */
+    public List<Complaint> getAllComplaints() {
+        List<Complaint> all = new ArrayList<>(complaintRepository.findAll());
+        all.sort(Comparator.comparing(Complaint::getCreatedAt).reversed());
+        return all;
+    }
+
+    /**
+     * Retrieves complaints visible to a specific user according to their role, sorted newest-first.
      */
     public List<Complaint> getComplaintsForUser(User user) {
         Objects.requireNonNull(user, "User cannot be null");
+        List<Complaint> result;
         if (user.getRole() == Role.STUDENT) {
-            return complaintRepository.findByReporterId(user.getId());
+            result = new ArrayList<>(complaintRepository.findByReporterId(user.getId()));
         } else if (user.getRole() == Role.TECHNICIAN) {
-            return complaintRepository.findByTechnicianId(user.getId());
+            result = new ArrayList<>(complaintRepository.findByTechnicianId(user.getId()));
+        } else {
+            result = new ArrayList<>(complaintRepository.findAll());
         }
-        return complaintRepository.findAll();
+        result.sort(Comparator.comparing(Complaint::getCreatedAt).reversed());
+        return result;
     }
 
     /**
-     * Returns all unresolved complaints that have exceeded their priority response target.
+     * Returns all unresolved complaints that have exceeded their priority response target, oldest-first.
      */
     public List<Complaint> getOverdueComplaints() {
         List<Complaint> overdue = new ArrayList<>();
@@ -175,18 +196,47 @@ public class ComplaintService {
                 overdue.add(c);
             }
         }
+        overdue.sort(Comparator.comparing(Complaint::getCreatedAt));
         return overdue;
     }
 
     /**
-     * Multi-criteria search and filter supporting role scoping, keywords, category, priority, status, and overdue flags.
+     * Returns overdue complaints filtered optionally by priority (Admin-only).
+     */
+    public List<Complaint> getOverdueComplaints(User viewer, Priority priorityFilter) {
+        Objects.requireNonNull(viewer, "Viewer cannot be null");
+        if (!viewer.canAssignComplaints()) {
+            throw new UnauthorizedException("Only administrators can view the campus-wide overdue queue.");
+        }
+        List<Complaint> overdue = new ArrayList<>();
+        for (Complaint c : getOverdueComplaints()) {
+            if (priorityFilter == null || c.getPriority() == priorityFilter) {
+                overdue.add(c);
+            }
+        }
+        return overdue;
+    }
+
+    /**
+     * Multi-criteria search and filter supporting role scoping, keywords, category, priority,
+     * status, and overdue flags.
      */
     public List<Complaint> searchComplaints(User viewer, String query, Category category,
                                             Priority priority, ComplaintStatus status, Boolean overdueOnly) {
+        return searchComplaints(viewer, query, category, priority, status, null, overdueOnly);
+    }
+
+    /**
+     * Full multi-criteria search and filter including administrator Assigned Technician filtering.
+     */
+    public List<Complaint> searchComplaints(User viewer, String query, Category category,
+                                            Priority priority, ComplaintStatus status,
+                                            String assignedTechnicianId, Boolean overdueOnly) {
         List<Complaint> scope = getComplaintsForUser(viewer);
         List<Complaint> filtered = new ArrayList<>();
 
         String q = query != null ? query.trim().toLowerCase() : "";
+        String techFilter = assignedTechnicianId != null ? assignedTechnicianId.trim() : "";
 
         for (Complaint c : scope) {
             if (category != null && c.getCategory() != category) {
@@ -198,6 +248,15 @@ public class ComplaintService {
             if (status != null && c.getStatus() != status) {
                 continue;
             }
+            if (!techFilter.isEmpty()) {
+                if (FILTER_UNASSIGNED.equals(techFilter)) {
+                    if (!c.getAssignedTechnicianId().isBlank()) {
+                        continue;
+                    }
+                } else if (!techFilter.equals(c.getAssignedTechnicianId())) {
+                    continue;
+                }
+            }
             if (Boolean.TRUE.equals(overdueOnly) && !c.isOverdue()) {
                 continue;
             }
@@ -205,6 +264,8 @@ public class ComplaintService {
                 boolean matches = c.getTitle().toLowerCase().contains(q)
                         || c.getLocation().toLowerCase().contains(q)
                         || c.getId().toLowerCase().contains(q)
+                        || c.getCategory().getDisplayName().toLowerCase().contains(q)
+                        || c.getStatus().getDisplayName().toLowerCase().contains(q)
                         || c.getDescription().toLowerCase().contains(q)
                         || c.getReporterName().toLowerCase().contains(q)
                         || c.getAssignedTechnicianName().toLowerCase().contains(q);

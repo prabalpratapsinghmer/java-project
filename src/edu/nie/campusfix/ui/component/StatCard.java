@@ -13,21 +13,28 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 
 /**
- * Modern KPI statistic card with rounded borders, title, large metric number, and accent indicator.
+ * Modern KPI statistic card with colored top indicator bar, non-truncating title,
+ * prominent metric figure, and optional muted caption.
  */
 @SuppressWarnings({"serial", "this-escape"})
 public class StatCard extends JPanel {
     private static final long serialVersionUID = 1L;
     private final JLabel titleLabel;
     private final JLabel valueLabel;
+    private final JLabel captionLabel;
     private final Color accentColor;
 
     public StatCard(String title, long initialValue, Color accentColor) {
+        this(title, initialValue, accentColor, "");
+    }
+
+    public StatCard(String title, long initialValue, Color accentColor, String caption) {
         this.accentColor = accentColor != null ? accentColor : UITheme.PRIMARY;
-        setLayout(new BorderLayout(0, 6));
+        setLayout(new BorderLayout(0, 4));
         setOpaque(false);
-        setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-        setPreferredSize(new Dimension(170, 95));
+        setBorder(BorderFactory.createEmptyBorder(14, 14, 12, 14));
+        setPreferredSize(new Dimension(150, 88));
+        setMinimumSize(new Dimension(120, 82));
 
         titleLabel = new JLabel(title.toUpperCase());
         titleLabel.setFont(UITheme.FONT_BADGE);
@@ -37,12 +44,28 @@ public class StatCard extends JPanel {
         valueLabel.setFont(UITheme.FONT_METRIC);
         valueLabel.setForeground(UITheme.TEXT_PRIMARY);
 
+        captionLabel = new JLabel(caption == null ? "" : caption);
+        captionLabel.setFont(UITheme.FONT_SMALL);
+        captionLabel.setForeground(UITheme.TEXT_SUBTLE);
+
         add(titleLabel, BorderLayout.NORTH);
         add(valueLabel, BorderLayout.CENTER);
+        if (caption != null && !caption.isEmpty()) {
+            add(captionLabel, BorderLayout.SOUTH);
+        }
     }
 
     public void setValue(long value) {
         valueLabel.setText(String.valueOf(value));
+        repaint();
+    }
+
+    public void setCaption(String caption) {
+        captionLabel.setText(caption == null ? "" : caption);
+        if (captionLabel.getParent() == null && caption != null && !caption.isEmpty()) {
+            add(captionLabel, BorderLayout.SOUTH);
+            revalidate();
+        }
         repaint();
     }
 
@@ -64,8 +87,8 @@ public class StatCard extends JPanel {
 
         // Accent top indicator bar
         g2.setColor(accentColor);
-        g2.fillRoundRect(0, 0, w - 1, 4, 10, 10);
-        g2.fillRect(0, 2, w - 1, 2);
+        g2.fillRoundRect(1, 1, w - 2, 4, 8, 8);
+        g2.fillRect(1, 3, w - 2, 2);
 
         g2.dispose();
         super.paintComponent(g);

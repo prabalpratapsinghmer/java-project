@@ -6,9 +6,9 @@ import edu.nie.campusfix.enums.Priority;
 import edu.nie.campusfix.enums.Role;
 import edu.nie.campusfix.enums.Severity;
 import edu.nie.campusfix.exception.AuthenticationException;
+import edu.nie.campusfix.exception.StorageException;
 import edu.nie.campusfix.exception.UnauthorizedException;
 import edu.nie.campusfix.exception.ValidationException;
-import edu.nie.campusfix.exception.StorageException;
 import edu.nie.campusfix.model.AdminUser;
 import edu.nie.campusfix.model.Complaint;
 import edu.nie.campusfix.model.StudentUser;
@@ -25,7 +25,6 @@ import edu.nie.campusfix.service.DuplicateDetectionService;
 import edu.nie.campusfix.service.PriorityService;
 import edu.nie.campusfix.service.ReportService;
 import edu.nie.campusfix.util.CsvExportUtil;
-import edu.nie.campusfix.util.PasswordUtil;
 import edu.nie.campusfix.util.FileStorageUtil;
 
 import java.io.IOException;
@@ -35,12 +34,12 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Properties;
 import java.util.UUID;
 
 /**
- * Comprehensive standalone automated test suite validating all 30 mandatory CampusFix test specifications.
- * Executes in an isolated temporary directory to ensure zero side-effects on persistent application storage.
+ * Comprehensive standalone automated test suite validating all 30 mandatory CampusFix specifications
+ * plus boundary, security, formula-injection, and overwrite-protection assertions.
+ * Executes in an isolated temporary directory with zero side-effects on production data.
  */
 public class TestRunner {
     private static int passedCount = 0;
@@ -67,7 +66,6 @@ public class TestRunner {
             ComplaintService compService = new ComplaintService(compRepo, priorityService, duplicateService, assignmentService);
             ReportService reportService = new ReportService(compRepo, userRepo);
 
-            // Execute all 30 tests
             test01_InitialAdminSetup(authService, userRepo);
             test02_StudentRegistration(authService, userRepo);
             test03_InvalidRegistration(authService);
@@ -76,8 +74,8 @@ public class TestRunner {
             test06_ComplaintCreation(compService, userRepo);
             test07_UniqueComplaintIds(compService, userRepo);
             test08_PriorityCalculation(priorityService);
-            test09_DuplicateDetectionMatching(compService, userRepo);
-            test10_DuplicateDetectionNonMatching(compService, userRepo);
+            test09_DuplicateDetectionMatching(compService, compRepo, userRepo);
+            test10_DuplicateDetectionNonMatching(compService, compRepo);
             test11_AdminCanAssignTechnician(authService, compService, userRepo);
             test12_StudentCannotAssignTechnician(compService, userRepo);
             test13_TechnicianViewsAssignedComplaints(compService, userRepo);
@@ -86,16 +84,16 @@ public class TestRunner {
             test16_InvalidStatusTransitions(compService, userRepo);
             test17_ResolutionNotesSaved(compService, userRepo);
             test18_ComplaintHistoryRecorded(compService, userRepo);
-            test19_OverdueClassification(compRepo, priorityService);
-            test20_DashboardTotalsCalculated(compService, reportService, userRepo);
+            test19_OverdueClassification(compRepo);
+            test20_DashboardTotalsCalculated(reportService);
             test21_ComplaintSearchesAndFilters(compService, userRepo);
-            test22_CsvReportExport(reportService, reportsDir);
+            test22_CsvReportExport(compService, reportService, userRepo, reportsDir);
             test23_DataSurvivesReload(userDir, complaintDir);
             test24_CorruptedDataHandledSafely(userDir, complaintDir);
             test25_EmptyDatabaseStability(tempDir);
             test26_NoAdminViaPublicRegistration(authService);
             test27_AllPriorityCombinations(priorityService);
-            test28_NoAccidentalOverwrite(userRepo);
+            test28_NoAccidentalOverwrite(userRepo, compRepo);
             test29_ClassesCompileSuccessfully();
             test30_FullEndToEndLifecycle(tempDir);
 
@@ -153,6 +151,7 @@ public class TestRunner {
             assertNotNull(student, "Student should not be null");
             assertEquals(Role.STUDENT, student.getRole(), "Role must be STUDENT");
             assertTrue(repo.findByUsername("student_test").isPresent(), "Student must exist in repository");
+            assertFalse(student.getPasswordHash().contains("StudentPass@123"), "Password must never be stored in plaintext");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -177,8 +176,16 @@ public class TestRunner {
                 badEmailRejected = true;
             }
 
+            boolean badUsernameRejected = false;
+            try {
+                auth.registerStudent("a!", "ValidPass123".toCharArray(), "Valid Name", "v2@test.edu", "", "", "");
+            } catch (ValidationException e) {
+                badUsernameRejected = true;
+            }
+
             assertTrue(shortPassRejected, "Short password (<6) must be rejected");
             assertTrue(badEmailRejected, "Invalid email format must be rejected");
+            assertTrue(badUsernameRejected, "Invalid username must be rejected");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -225,6 +232,7 @@ public class TestRunner {
             assertNotNull(c, "Complaint must not be null");
             assertEquals(ComplaintStatus.PENDING, c.getStatus(), "Initial status must be PENDING");
             assertEquals("Seminar Hall 2", c.getLocation(), "Location must match");
+            assertEquals(Priority.MEDIUM, c.getPriority(), "Calculated priority must be MEDIUM");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -253,7 +261,7 @@ public class TestRunner {
         try {
             assertEquals(Priority.LOW, priorityService.calculatePriority(Severity.LOW, Category.FURNITURE), "Low + Furniture = LOW");
             assertEquals(Priority.MEDIUM, priorityService.calculatePriority(Severity.MEDIUM, Category.PLUMBING), "Medium + Plumbing = MEDIUM");
-            assertEquals(Priority.HIGH, priorityService.calculatePriority(Severity.HIGH, Category.CLASSROOM_EQUIPMENT), "High + Classroom = HIGH");
+            assertEquals(Priority.HIGH, priorityService.calculatePriority(Severity.HIGH, Category.LABORATORY_EQUIPMENT), "High + Lab = HIGH");
             assertEquals(Priority.CRITICAL, priorityService.calculatePriority(Severity.HIGH, Category.ELECTRICAL), "High + Electrical (bonus) = CRITICAL");
             assertEquals(Priority.HIGH, priorityService.calculatePriority(Severity.MEDIUM, Category.SAFETY), "Medium + Safety (bonus) = HIGH");
             pass(name);
@@ -263,13 +271,30 @@ public class TestRunner {
     }
 
     // TEST 09: Duplicate complaint warnings are generated correctly.
-    private static void test09_DuplicateDetectionMatching(ComplaintService compService, UserRepository userRepo) {
+    private static void test09_DuplicateDetectionMatching(ComplaintService compService, ComplaintRepository compRepo, UserRepository userRepo) {
         String name = "Test 09: Duplicate complaint warnings are generated correctly.";
         try {
             User student = userRepo.findByUsername("student_test").orElseThrow();
+            User admin = userRepo.findByUsername("admin_test").orElseThrow();
             compService.submitComplaint(student, "Leaking Tap", Category.PLUMBING, "Hostel 3 Ground Floor", "Tap continuously leaking water", Severity.LOW);
             List<Complaint> duplicates = compService.checkPotentialDuplicates("Hostel 3, Ground Floor!", Category.PLUMBING);
             assertFalse(duplicates.isEmpty(), "Should detect duplicate for normalized location 'Hostel 3, Ground Floor!'");
+
+            // Submit confirmed second duplicate and verify admin duplicate cluster review finds it
+            compService.submitComplaint(student, "Tap Still Dripping", Category.PLUMBING, "hostel-3 ground floor", "Same tap still leaking heavily", Severity.MEDIUM);
+            List<DuplicateDetectionService.DuplicateGroup> groups = compService.getPotentialDuplicateGroups(admin);
+            assertFalse(groups.isEmpty(), "Admin duplicate group review must detect matching cluster");
+
+            // Verify 8-day-old complaint is outside 7-day window
+            Instant eightDaysAgo = Instant.now().minus(8, ChronoUnit.DAYS);
+            Complaint expired = new Complaint(UUID.randomUUID().toString(), student.getId(), student.getFullName(),
+                    "Old Leak", Category.PLUMBING, "Old Block Terrace", "Old leak outside window",
+                    Severity.LOW, Priority.LOW, ComplaintStatus.PENDING, "", "",
+                    eightDaysAgo, eightDaysAgo, null, "", List.of());
+            compRepo.create(expired);
+            assertTrue(compService.checkPotentialDuplicates("Old Block Terrace", Category.PLUMBING).isEmpty(),
+                    "Complaints older than 7 days must not trigger duplicate warnings");
+
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -277,11 +302,24 @@ public class TestRunner {
     }
 
     // TEST 10: Different locations do not cause false duplicate matches.
-    private static void test10_DuplicateDetectionNonMatching(ComplaintService compService, UserRepository userRepo) {
+    private static void test10_DuplicateDetectionNonMatching(ComplaintService compService, ComplaintRepository compRepo) {
         String name = "Test 10: Different locations do not cause false duplicate matches.";
         try {
             List<Complaint> duplicates = compService.checkPotentialDuplicates("Library Second Floor", Category.PLUMBING);
             assertTrue(duplicates.isEmpty(), "Different location must not trigger duplicate warning");
+
+            List<Complaint> diffCategory = compService.checkPotentialDuplicates("Hostel 3 Ground Floor", Category.ELECTRICAL);
+            assertTrue(diffCategory.isEmpty(), "Different category at same location must not trigger duplicate warning");
+
+            // Resolved complaint at same location/category must not trigger duplicate warning
+            Complaint resolved = new Complaint(UUID.randomUUID().toString(), "u1", "Student",
+                    "Resolved Fan", Category.ELECTRICAL, "Auditorium Stage", "Fan repaired",
+                    Severity.LOW, Priority.MEDIUM, ComplaintStatus.RESOLVED, "t1", "Tech",
+                    Instant.now().minus(1, ChronoUnit.HOURS), Instant.now(), Instant.now(), "Fixed capacitor", List.of());
+            compRepo.create(resolved);
+            assertTrue(compService.checkPotentialDuplicates("Auditorium Stage", Category.ELECTRICAL).isEmpty(),
+                    "Resolved complaint must not trigger duplicate warning");
+
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -315,8 +353,7 @@ public class TestRunner {
         try {
             User student = userRepo.findByUsername("student_test").orElseThrow();
             TechnicianUser tech = userRepo.findAllTechnicians().get(0);
-            List<Complaint> complaints = compService.getAllComplaints();
-            Complaint complaint = complaints.get(0);
+            Complaint complaint = compService.getAllComplaints().get(0);
 
             boolean unauthorizedCaught = false;
             try {
@@ -338,7 +375,9 @@ public class TestRunner {
             TechnicianUser tech = userRepo.findAllTechnicians().get(0);
             List<Complaint> techTasks = compService.getComplaintsForUser(tech);
             assertFalse(techTasks.isEmpty(), "Technician must see assigned tasks");
-            assertEquals(tech.getId(), techTasks.get(0).getAssignedTechnicianId(), "Technician ID must match");
+            for (Complaint c : techTasks) {
+                assertEquals(tech.getId(), c.getAssignedTechnicianId(), "Technician must only see own assigned tasks");
+            }
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -360,13 +399,30 @@ public class TestRunner {
             Complaint c = compService.submitComplaint(student, "Fuse Blown", Category.ELECTRICAL, "Block B 204", "Main fuse blown out", Severity.HIGH);
             compService.assignTechnician(admin, c.getId(), assignedTech.getId(), "Assignment note");
 
-            boolean unauthorizedCaught = false;
+            boolean startBlocked = false;
             try {
                 compService.startWork(otherTech, c.getId(), "Unrelated technician attempt");
             } catch (UnauthorizedException e) {
-                unauthorizedCaught = true;
+                startBlocked = true;
             }
-            assertTrue(unauthorizedCaught, "Unrelated technician must not be allowed to start work");
+            assertTrue(startBlocked, "Unrelated technician must not be allowed to start work");
+
+            boolean viewBlocked = false;
+            try {
+                compService.getComplaintForUser(otherTech, c.getId());
+            } catch (UnauthorizedException e) {
+                viewBlocked = true;
+            }
+            assertTrue(viewBlocked, "Unrelated technician must not view another technician's complaint");
+
+            boolean selfAssignBlocked = false;
+            try {
+                compService.assignTechnician(otherTech, c.getId(), otherTech.getId(), "Self assign");
+            } catch (UnauthorizedException e) {
+                selfAssignBlocked = true;
+            }
+            assertTrue(selfAssignBlocked, "Technician must not be able to assign complaints to themselves");
+
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -404,20 +460,52 @@ public class TestRunner {
     private static void test16_InvalidStatusTransitions(ComplaintService compService, UserRepository userRepo) {
         String name = "Test 16: Invalid status transitions fail safely.";
         try {
+            User admin = userRepo.findByUsername("admin_test").orElseThrow();
             User student = userRepo.findByUsername("student_test").orElseThrow();
             TechnicianUser tech = userRepo.findAllTechnicians().get(0);
 
             Complaint c = compService.submitComplaint(student, "Desk Damaged", Category.FURNITURE,
                     "Room 303", "Desk surface is broken and unusable", Severity.LOW);
 
-            // Attempting to start work directly on PENDING complaint (without assignment)
-            boolean failedCorrectly = false;
+            // 1. Cannot start work on unassigned PENDING complaint
+            boolean startOnPendingBlocked = false;
             try {
                 compService.startWork(tech, c.getId(), "Direct start attempt");
-            } catch (Exception e) {
-                failedCorrectly = true;
+            } catch (UnauthorizedException | ValidationException e) {
+                startOnPendingBlocked = true;
             }
-            assertTrue(failedCorrectly, "Cannot start work on unassigned PENDING complaint");
+            assertTrue(startOnPendingBlocked, "Cannot start work on unassigned PENDING complaint");
+
+            // 2. Cannot resolve without assignment (even as admin)
+            boolean resolvePendingBlocked = false;
+            try {
+                compService.resolveComplaint(admin, c.getId(), "Trying to skip workflow");
+            } catch (ValidationException e) {
+                resolvePendingBlocked = true;
+            }
+            assertTrue(resolvePendingBlocked, "Cannot resolve unassigned PENDING complaint");
+
+            // 3. Student cannot update maintenance status
+            compService.assignTechnician(admin, c.getId(), tech.getId(), "Assigned");
+            boolean studentStartBlocked = false;
+            try {
+                compService.startWork(student, c.getId(), "Student attempt");
+            } catch (UnauthorizedException e) {
+                studentStartBlocked = true;
+            }
+            assertTrue(studentStartBlocked, "Student must not be able to update complaint status");
+
+            // 4. Cannot move RESOLVED backwards via reassignment
+            compService.startWork(tech, c.getId(), "Started");
+            compService.resolveComplaint(tech, c.getId(), "Replaced desk top and tightened bolts.");
+            boolean backwardBlocked = false;
+            try {
+                compService.assignTechnician(admin, c.getId(), tech.getId(), "Reopen attempt");
+            } catch (ValidationException e) {
+                backwardBlocked = true;
+            }
+            assertTrue(backwardBlocked, "RESOLVED complaint cannot move backwards");
+
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -461,7 +549,7 @@ public class TestRunner {
             compService.startWork(tech, c.getId(), "Started");
             Complaint resolved = compService.resolveComplaint(tech, c.getId(), "Lubricated cylinder and replaced lock key.");
 
-            assertTrue(resolved.getAuditHistory().size() >= 4, "Must record at least 4 lifecycle events (Created, Assigned, Started, Resolved)");
+            assertTrue(resolved.getAuditHistory().size() >= 4, "Must record at least 4 lifecycle events");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -469,20 +557,31 @@ public class TestRunner {
     }
 
     // TEST 19: Overdue classification is correct.
-    private static void test19_OverdueClassification(ComplaintRepository compRepo, PriorityService priorityService) {
+    private static void test19_OverdueClassification(ComplaintRepository compRepo) {
         String name = "Test 19: Overdue classification is correct.";
         try {
-            Instant twoDaysAgo = Instant.now().minus(49, ChronoUnit.HOURS);
-            Complaint oldComplaint = new Complaint(
+            // Exact boundary: 24h 30m CRITICAL (24h target) MUST be overdue
+            Instant justOver24h = Instant.now().minus(24 * 60 + 30, ChronoUnit.MINUTES);
+            Complaint overdueCritical = new Complaint(
                     UUID.randomUUID().toString(),
-                    "user-1", "Student", "Old Critical Issue", Category.ELECTRICAL,
+                    "user-1", "Student", "Overdue Critical Issue", Category.ELECTRICAL,
                     "Substation", "Tripping breaker", Severity.HIGH, Priority.CRITICAL,
                     ComplaintStatus.ASSIGNED, "tech-1", "Tech",
-                    twoDaysAgo, twoDaysAgo, null, "", List.of()
+                    justOver24h, justOver24h, null, "", List.of()
             );
-            compRepo.save(oldComplaint);
+            compRepo.create(overdueCritical);
+            assertTrue(overdueCritical.isOverdue(), "24h30m old CRITICAL (target 24h) complaint must be overdue");
 
-            assertTrue(oldComplaint.isOverdue(), "49h old CRITICAL (target 24h) complaint must be overdue");
+            // 23h 30m CRITICAL MUST NOT be overdue
+            Instant under24h = Instant.now().minus(23 * 60 + 30, ChronoUnit.MINUTES);
+            Complaint freshCritical = new Complaint(
+                    UUID.randomUUID().toString(),
+                    "user-1", "Student", "Fresh Critical Issue", Category.ELECTRICAL,
+                    "Substation 2", "Voltage drop", Severity.HIGH, Priority.CRITICAL,
+                    ComplaintStatus.PENDING, "", "",
+                    under24h, under24h, null, "", List.of()
+            );
+            assertFalse(freshCritical.isOverdue(), "23h30m old CRITICAL complaint must not be overdue yet");
 
             // Resolved complaint must NEVER be overdue
             Complaint resolvedOld = new Complaint(
@@ -490,7 +589,7 @@ public class TestRunner {
                     "user-1", "Student", "Old Resolved Issue", Category.ELECTRICAL,
                     "Substation", "Tripping breaker", Severity.HIGH, Priority.CRITICAL,
                     ComplaintStatus.RESOLVED, "tech-1", "Tech",
-                    twoDaysAgo, twoDaysAgo, Instant.now(), "Completed", List.of()
+                    justOver24h, justOver24h, Instant.now(), "Completed", List.of()
             );
             assertFalse(resolvedOld.isOverdue(), "Resolved complaint must not be marked overdue");
             pass(name);
@@ -500,13 +599,14 @@ public class TestRunner {
     }
 
     // TEST 20: Dashboard totals are calculated correctly.
-    private static void test20_DashboardTotalsCalculated(ComplaintService compService, ReportService reportService, UserRepository userRepo) {
+    private static void test20_DashboardTotalsCalculated(ReportService reportService) {
         String name = "Test 20: Dashboard totals are calculated correctly.";
         try {
             ReportService.ComplaintSummaryReport report = reportService.generateSummary();
             long total = report.totalComplaints();
             long sum = report.pendingCount() + report.assignedCount() + report.inProgressCount() + report.resolvedCount();
             assertEquals(total, sum, "Sum of individual status counts must equal total complaints");
+            assertEquals(report.overdueCount(), (long) report.overdueComplaints().size(), "Overdue count must match overdue list size");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -518,26 +618,65 @@ public class TestRunner {
         String name = "Test 21: Complaint searches and filters work.";
         try {
             User admin = userRepo.findByUsername("admin_test").orElseThrow();
-            List<Complaint> electricals = compService.searchComplaints(admin, "", Category.ELECTRICAL, null, null, null);
+            TechnicianUser tech = userRepo.findAllTechnicians().get(0);
+
+            List<Complaint> electricals = compService.searchComplaints(admin, "", Category.ELECTRICAL, null, null, null, null);
+            assertFalse(electricals.isEmpty(), "Should find electrical complaints");
             for (Complaint c : electricals) {
                 assertEquals(Category.ELECTRICAL, c.getCategory(), "Every search hit must match category filter");
             }
+
+            List<Complaint> byTech = compService.searchComplaints(admin, "", null, null, null, tech.getId(), null);
+            for (Complaint c : byTech) {
+                assertEquals(tech.getId(), c.getAssignedTechnicianId(), "Every hit must match technician filter");
+            }
+
+            List<Complaint> unassigned = compService.searchComplaints(admin, "", null, null, null, ComplaintService.FILTER_UNASSIGNED, null);
+            for (Complaint c : unassigned) {
+                assertTrue(c.getAssignedTechnicianId().isBlank(), "Every hit in unassigned filter must have blank tech ID");
+            }
+
+            List<Complaint> overdueOnly = compService.searchComplaints(admin, "", null, null, null, null, Boolean.TRUE);
+            assertFalse(overdueOnly.isEmpty(), "Should find at least one overdue complaint");
+            for (Complaint c : overdueOnly) {
+                assertTrue(c.isOverdue(), "Every hit in overdue filter must be overdue");
+            }
+
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
         }
     }
 
-    // TEST 22: CSV report export works.
-    private static void test22_CsvReportExport(ReportService reportService, Path reportsDir) {
+    // TEST 22: CSV report export works (including RFC-4180 escaping and formula injection defense).
+    private static void test22_CsvReportExport(ComplaintService compService, ReportService reportService, UserRepository userRepo, Path reportsDir) {
         String name = "Test 22: CSV report export works.";
         try {
+            User student = userRepo.findByUsername("student_test").orElseThrow();
+            compService.submitComplaint(student, "=CMD|' /C calc'!A0", Category.OTHER,
+                    "Room 101, \"East\" Wing", "Line 1\nLine 2 with, comma and \"quotes\"", Severity.LOW);
+
             Path csvFile = reportsDir.resolve("test_export.csv");
+            Path summaryFile = reportsDir.resolve("test_summary.csv");
+            Path overdueFile = reportsDir.resolve("test_overdue.csv");
+
             reportService.exportComplaintsToCsv(csvFile);
-            assertTrue(Files.exists(csvFile), "Exported CSV file must exist on disk");
+            reportService.exportSummaryReportToCsv(summaryFile);
+            reportService.exportOverdueReportToCsv(overdueFile);
+
+            assertTrue(Files.exists(csvFile), "Exported full CSV file must exist");
+            assertTrue(Files.exists(summaryFile), "Exported summary CSV file must exist");
+            assertTrue(Files.exists(overdueFile), "Exported overdue CSV file must exist");
+
             String content = Files.readString(csvFile);
             assertTrue(content.contains("Complaint ID"), "CSV must include header 'Complaint ID'");
             assertTrue(content.contains("Category"), "CSV must include header 'Category'");
+            assertTrue(content.contains("'=CMD"), "Formula injection payload must be neutralized with leading single quote");
+            assertEquals("\"'=SUM(A1)\"", CsvExportUtil.escapeCell("=SUM(A1)").contains(",") ? CsvExportUtil.escapeCell("=SUM(A1)") : "\"'=SUM(A1)\"",
+                    "Formula escape sanity check");
+            assertEquals("'=SUM(A1)", CsvExportUtil.escapeCell("=SUM(A1)"), "Formula cell must start with single quote");
+            assertEquals("\"a, \"\"b\"\"\"", CsvExportUtil.escapeCell("a, \"b\""), "Comma and quotes must be RFC-4180 escaped");
+
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -548,7 +687,6 @@ public class TestRunner {
     private static void test23_DataSurvivesReload(Path userDir, Path complaintDir) {
         String name = "Test 23: Application data survives restart/reload.";
         try {
-            // Instantiate completely fresh repository instances reading from the same directory
             UserRepository reloadedUserRepo = new FileUserRepository(userDir);
             ComplaintRepository reloadedCompRepo = new FileComplaintRepository(complaintDir);
 
@@ -568,9 +706,10 @@ public class TestRunner {
             Path corruptFile = userDir.resolve("corrupt_user.properties");
             Files.writeString(corruptFile, "invalid_unparsable_binary_content_\\u0000");
 
-            UserRepository safeRepo = new FileUserRepository(userDir);
+            FileUserRepository safeRepo = new FileUserRepository(userDir);
             List<User> users = safeRepo.findAll();
             assertNotNull(users, "Should safely return valid users even with corrupted file present");
+            assertFalse(safeRepo.getCorruptedFileWarnings().isEmpty(), "Corrupted file warning must be recorded");
 
             // Path traversal rejection verification
             assertTrue(safeRepo.findById("../../../etc/passwd").isEmpty(),
@@ -607,6 +746,8 @@ public class TestRunner {
             ReportService.ComplaintSummaryReport report = emptyReportService.generateSummary();
             assertEquals(0L, report.totalComplaints(), "Total complaints on empty db must be 0");
             assertEquals(0L, report.overdueCount(), "Overdue count must be 0");
+            assertTrue(report.overdueComplaints().isEmpty(), "Overdue list must be empty");
+            assertTrue(report.technicianWorkloads().isEmpty(), "Technician workload list must be empty");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -619,7 +760,6 @@ public class TestRunner {
         try {
             boolean rejected = false;
             try {
-                // Secondary attempt to register admin must fail with UnauthorizedException
                 auth.registerInitialAdmin("hacker_admin", "HackPass@123".toCharArray(), "Hacker", "h@campus.edu", "", "H01", "Dept");
             } catch (UnauthorizedException e) {
                 rejected = true;
@@ -635,6 +775,7 @@ public class TestRunner {
     private static void test27_AllPriorityCombinations(PriorityService priorityService) {
         String name = "Test 27: All priority combinations produce the expected result.";
         try {
+            int tested = 0;
             for (Severity sev : Severity.values()) {
                 for (Category cat : Category.values()) {
                     Priority prio = priorityService.calculatePriority(sev, cat);
@@ -643,8 +784,10 @@ public class TestRunner {
                     if (cat.isHighRisk()) base += 1;
                     int expectedScore = Math.min(4, Math.max(1, base));
                     assertEquals(expectedScore, prio.getScore(), "Priority score mismatch for " + sev + " / " + cat);
+                    tested++;
                 }
             }
+            assertEquals(27, tested, "All 27 (3 severities x 9 categories) combinations must be verified");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -652,15 +795,43 @@ public class TestRunner {
     }
 
     // TEST 28: User and complaint records cannot be accidentally overwritten.
-    private static void test28_NoAccidentalOverwrite(UserRepository userRepo) {
+    private static void test28_NoAccidentalOverwrite(UserRepository userRepo, ComplaintRepository compRepo) {
         String name = "Test 28: User and complaint records cannot be accidentally overwritten.";
         try {
-            User existing = userRepo.findByUsername("student_test").orElseThrow();
-            String originalHash = existing.getPasswordHash();
+            User existingUser = userRepo.findByUsername("student_test").orElseThrow();
+            String originalHash = existingUser.getPasswordHash();
 
-            // Attempting to re-save another user with same ID but different username should update only through deliberate entity updates
-            User fresh = userRepo.findById(existing.getId()).orElseThrow();
-            assertEquals(originalHash, fresh.getPasswordHash(), "Password hash must not be altered");
+            // 1. Attempting create() with an existing user ID must fail without overwriting
+            StudentUser collidingUser = new StudentUser(
+                    existingUser.getId(), "other_name", "fake_hash", "Impostor",
+                    "imp@test.edu", "", "", "", Instant.now());
+            boolean userOverwriteBlocked = false;
+            try {
+                userRepo.create(collidingUser);
+            } catch (StorageException e) {
+                userOverwriteBlocked = true;
+            }
+            assertTrue(userOverwriteBlocked, "Creating a user with an existing ID must be rejected");
+            assertEquals(originalHash, userRepo.findById(existingUser.getId()).orElseThrow().getPasswordHash(),
+                    "Original user password hash must remain intact");
+
+            // 2. Attempting create() with an existing complaint ID must fail without overwriting
+            Complaint existingComp = compRepo.findAll().get(0);
+            String originalTitle = existingComp.getTitle();
+            Complaint collidingComp = new Complaint(
+                    existingComp.getId(), existingComp.getReporterId(), "Other", "Overwritten Title",
+                    Category.OTHER, "Nowhere", "Overwrite attempt", Severity.LOW, Priority.LOW,
+                    ComplaintStatus.PENDING, "", "", Instant.now(), Instant.now(), null, "", List.of());
+            boolean compOverwriteBlocked = false;
+            try {
+                compRepo.create(collidingComp);
+            } catch (StorageException e) {
+                compOverwriteBlocked = true;
+            }
+            assertTrue(compOverwriteBlocked, "Creating a complaint with an existing ID must be rejected");
+            assertEquals(originalTitle, compRepo.findById(existingComp.getId()).orElseThrow().getTitle(),
+                    "Original complaint title must remain intact");
+
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -677,7 +848,7 @@ public class TestRunner {
             try (var s = Files.walk(outDir)) {
                 classCount = s.filter(p -> p.toString().endsWith(".class")).count();
             }
-            assertTrue(classCount >= 15, "At least 15 compiled class files must exist in out/");
+            assertTrue(classCount >= 25, "Expected at least 25 compiled class files in out/");
             pass(name);
         } catch (Exception e) {
             fail(name, e.getMessage());
@@ -697,6 +868,7 @@ public class TestRunner {
             DuplicateDetectionService dup = new DuplicateDetectionService(cRepo);
             AssignmentService assign = new AssignmentService(cRepo, uRepo);
             ComplaintService service = new ComplaintService(cRepo, priority, dup, assign);
+            ReportService reports = new ReportService(cRepo, uRepo);
 
             // 1. Admin Setup
             AdminUser admin = auth.registerInitialAdmin("superadmin", "AdminPass@123".toCharArray(),
@@ -719,6 +891,7 @@ public class TestRunner {
             // 5. Admin Assigns Technician
             complaint = service.assignTechnician(admin, complaint.getId(), tech.getId(), "Dispatched Bob for immediate UPS inspection");
             assertEquals(ComplaintStatus.ASSIGNED, complaint.getStatus());
+            assertEquals(1L, reports.generateSummary().activeWorkloadByTechId().get(tech.getId()), "Active workload must be 1");
 
             // 6. Technician Starts Work
             complaint = service.startWork(tech, complaint.getId(), "Isolated secondary UPS circuit and testing batteries");
@@ -728,6 +901,7 @@ public class TestRunner {
             complaint = service.resolveComplaint(tech, complaint.getId(), "Replaced defective battery bank module 3. System nominal.");
             assertEquals(ComplaintStatus.RESOLVED, complaint.getStatus());
             assertEquals(4, complaint.getAuditHistory().size());
+            assertEquals(0L, reports.generateSummary().activeWorkloadByTechId().get(tech.getId()), "Active workload must drop to 0 after resolution");
 
             pass(name);
         } catch (Exception e) {
@@ -764,10 +938,16 @@ public class TestRunner {
                 try (var stream = Files.walk(dir)) {
                     stream.sorted(Comparator.reverseOrder())
                           .forEach(p -> {
-                              try { Files.deleteIfExists(p); } catch (IOException ignored) {}
+                              try {
+                                  Files.deleteIfExists(p);
+                              } catch (IOException e) {
+                                  System.err.println("[CampusFix TestRunner] Cleanup warning for " + p + ": " + e.getMessage());
+                              }
                           });
                 }
             }
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            System.err.println("[CampusFix TestRunner] Failed to clean temp directory " + dir + ": " + e.getMessage());
+        }
     }
 }

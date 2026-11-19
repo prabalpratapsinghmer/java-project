@@ -23,6 +23,10 @@ import java.awt.GraphicsEnvironment;
 public class Main {
 
     public static void main(String[] args) {
+        System.setProperty("sun.java2d.uiScale.enabled", "true");
+        System.setProperty("awt.useSystemAAFontSettings", "on");
+        System.setProperty("swing.aatext", "true");
+
         System.out.println("==================================================");
         System.out.println("CampusFix – Smart Campus Maintenance System");
         System.out.println("Object-Oriented Programming with Java (Experiential Learning)");

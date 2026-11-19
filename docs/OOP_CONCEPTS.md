@@ -112,6 +112,7 @@ This document provides concrete code citations from the CampusFix source reposit
   public interface Repository<T, ID> {
       Optional<T> findById(ID id);
       List<T> findAll();
+      T create(T entity);
       T save(T entity);
       boolean deleteById(ID id);
       boolean existsById(ID id);

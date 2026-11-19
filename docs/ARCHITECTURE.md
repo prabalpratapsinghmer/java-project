@@ -72,28 +72,38 @@ sequenceDiagram
     UI->>PS: calculatePriority(severity, category)
     PS-->>UI: Priority (with explanation string)
     Student->>UI: Clicks "Submit Complaint"
+    UI->>UI: ValidationUtil.validateComplaintFields(...)
     UI->>DS: findPotentialDuplicates(location, category)
-    DS-->>UI: List of matching active complaints
+    DS-->>UI: List of matching active complaints (7-day exact window)
     alt Duplicate Found
-        UI->>Student: Prompts warning confirmation dialog
+        UI->>Student: Prompts privacy-safe warning confirmation dialog
     end
-    UI->>CS: submitComplaint(...)
+    UI->>CS: submitComplaint(...) via SwingWorker
     CS->>PS: calculatePriority(...)
-    CS->>CR: save(new Complaint)
+    CS->>CR: create(new Complaint) [overwrite-protected]
     CR->>FS: savePropertiesAtomically(...)
     FS-->>CR: File written via atomic move
     CR-->>CS: Persisted Complaint
-    CS-->>UI: Success confirmation
+    CS-->>UI: Success confirmation on EDT
 ```
 
 ---
 
 ## 4. Concurrency & Thread-Safety Design
-Although CampusFix is a desktop application, Swing event-dispatch threading and potential background tasks require strict concurrency protection:
-1. **Repository Synchronization:** `FileUserRepository` and `FileComplaintRepository` protect write and read operations using dedicated object monitor locks (`synchronized (lock)`).
-2. **Atomic File Swapping:** All file writes stage content to temporary sibling files (`.tmp.<nanoTime>`) before invoking `Files.move(..., StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)`. If a process is terminated mid-write, original persistent records remain intact without corruption.
-3. **Immutability:** Value objects such as `ComplaintHistoryEntry` and `ComplaintSummaryReport` are strictly immutable, eliminating race conditions when shared across dashboard views.
-4. **Defensive Collections:** Domain aggregates return unmodifiable collections (`Collections.unmodifiableList(...)`) to prevent callers from tampering with internal state.
+Although CampusFix is a desktop application, Swing event-dispatch threading and background I/O tasks require strict concurrency protection:
+1. **EDT Isolation (`SwingWorker`):** Slow cryptographic PBKDF2 hashing, complaint persistence, technician creation, and CSV exports run off the Event Dispatch Thread via `SwingWorker`, while all Swing component updates occur strictly on the EDT.
+2. **Repository Synchronization & Overwrite Protection:** `FileUserRepository` and `FileComplaintRepository` protect read/write operations using dedicated object monitor locks (`synchronized (lock)`), and `create(...)` rejects colliding record IDs so existing valid records can never be accidentally overwritten.
+3. **Atomic File Swapping:** All file writes (`.properties` records and `.csv` reports) stage content to temporary sibling files (`.tmp.<nanoTime>`) before invoking `Files.move(..., StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)`. If a process terminates mid-write, existing records remain intact.
+4. **Immutability & Defensive Collections:** Value objects (`ComplaintHistoryEntry`, `ComplaintSummaryReport`, `TechnicianWorkloadEntry`, `DuplicateGroup`) are immutable, and `Complaint.getAuditHistory()` returns `Collections.unmodifiableList(...)`.
+
+---
+
+## 5. Cross-Platform Desktop UI Architecture
+- **Deterministic Light Theme (`UITheme`):** Uses `UIManager.getCrossPlatformLookAndFeelClassName()` paired with custom lightweight Swing UI delegates (`BasicComboBoxUI`, `BasicScrollBarUI`, `BasicTextFieldUI`, `ModernTable.DirectPillBadgeRenderer`, and `ModernHeaderRenderer`) to prevent OS dark-theme (such as Linux GTK dark mode) contrast collisions.
+- **Role-Based Navigation (`MainFrame`):** Dark-slate sidebar switches live views via `CardLayout` with zero decorative buttons:
+  - **Student / Staff:** Dashboard, My Complaints, + New Complaint
+  - **Administrator:** Dashboard Overview, All Complaints, Duplicate Review, Overdue Queue, Technicians, Reports & Export
+  - **Technician:** Technician Dashboard, Assigned Tasks
 
 ---
 

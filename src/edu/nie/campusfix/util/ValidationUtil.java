@@ -4,14 +4,22 @@ import edu.nie.campusfix.exception.ValidationException;
 import java.util.regex.Pattern;
 
 /**
- * Validates domain inputs and boundaries before persistence.
+ * Validates domain inputs, lengths, identifiers, and security boundaries before persistence.
  */
 public final class ValidationUtil {
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,30}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^[0-9+()\\-\\s]{7,20}$");
+    private static final Pattern SAFE_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-]{3,64}$");
 
     private ValidationUtil() {
         // Utility
+    }
+
+    public static void validateId(String id, String fieldName) {
+        if (id == null || id.isBlank() || !SAFE_ID_PATTERN.matcher(id.trim()).matches()) {
+            throw new ValidationException("Invalid " + fieldName + " format.");
+        }
     }
 
     public static void validateUsername(String username) {
@@ -21,8 +29,8 @@ public final class ValidationUtil {
     }
 
     public static void validatePassword(char[] password) {
-        if (password == null || password.length < 6) {
-            throw new ValidationException("Password must be at least 6 characters long.");
+        if (password == null || password.length < 6 || password.length > 128) {
+            throw new ValidationException("Password must be between 6 and 128 characters long.");
         }
     }
 
@@ -33,8 +41,22 @@ public final class ValidationUtil {
     }
 
     public static void validateEmail(String email) {
-        if (email == null || !EMAIL_PATTERN.matcher(email.trim()).matches()) {
+        if (email == null || email.trim().length() > 150 || !EMAIL_PATTERN.matcher(email.trim()).matches()) {
             throw new ValidationException("Invalid email format (e.g. user@campus.edu).");
+        }
+    }
+
+    public static void validateOptionalPhone(String phone) {
+        if (phone != null && !phone.isBlank()) {
+            if (!PHONE_PATTERN.matcher(phone.trim()).matches()) {
+                throw new ValidationException("Phone number must be 7-20 characters (digits, +, -, spaces, parentheses).");
+            }
+        }
+    }
+
+    public static void validateOptionalText(String value, String fieldName, int maxLength) {
+        if (value != null && value.trim().length() > maxLength) {
+            throw new ValidationException(fieldName + " cannot exceed " + maxLength + " characters.");
         }
     }
 

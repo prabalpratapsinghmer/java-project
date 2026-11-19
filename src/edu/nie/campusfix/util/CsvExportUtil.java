@@ -45,38 +45,62 @@ public final class CsvExportUtil {
     }
 
     /**
-     * Writes tabular data to a CSV file safely in UTF-8.
+     * Writes tabular data to a CSV file safely and atomically in UTF-8.
      */
     public static void exportCsv(Path destination, List<String> headers, List<List<String>> rows) {
-        FileStorageUtil.ensureDirectory(destination.getParent());
+        if (destination == null) {
+            throw new StorageException("CSV destination path cannot be null.");
+        }
+        Path absoluteDest = destination.toAbsolutePath().normalize();
+        if (absoluteDest.getParent() != null) {
+            FileStorageUtil.ensureDirectory(absoluteDest.getParent());
+        }
 
-        try (BufferedWriter writer = Files.newBufferedWriter(destination, StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+        Path tempPath = absoluteDest.resolveSibling(absoluteDest.getFileName().toString() + ".tmp." + System.nanoTime());
 
-            // Write header
-            if (headers != null && !headers.isEmpty()) {
-                StringBuilder headerLine = new StringBuilder();
-                for (int i = 0; i < headers.size(); i++) {
-                    if (i > 0) headerLine.append(",");
-                    headerLine.append(escapeCell(headers.get(i)));
-                }
-                writer.write(headerLine.toString());
-                writer.newLine();
-            }
+        try {
+            try (BufferedWriter writer = Files.newBufferedWriter(tempPath, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
 
-            // Write data rows
-            if (rows != null) {
-                for (List<String> row : rows) {
-                    StringBuilder line = new StringBuilder();
-                    for (int i = 0; i < row.size(); i++) {
-                        if (i > 0) line.append(",");
-                        line.append(escapeCell(row.get(i)));
+                // Write header
+                if (headers != null && !headers.isEmpty()) {
+                    StringBuilder headerLine = new StringBuilder();
+                    for (int i = 0; i < headers.size(); i++) {
+                        if (i > 0) headerLine.append(",");
+                        headerLine.append(escapeCell(headers.get(i)));
                     }
-                    writer.write(line.toString());
+                    writer.write(headerLine.toString());
                     writer.newLine();
                 }
+
+                // Write data rows
+                if (rows != null) {
+                    for (List<String> row : rows) {
+                        StringBuilder line = new StringBuilder();
+                        for (int i = 0; i < row.size(); i++) {
+                            if (i > 0) line.append(",");
+                            line.append(escapeCell(row.get(i)));
+                        }
+                        writer.write(line.toString());
+                        writer.newLine();
+                    }
+                }
+            }
+
+            try {
+                Files.move(tempPath, absoluteDest,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(tempPath, absoluteDest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
+            try {
+                Files.deleteIfExists(tempPath);
+            } catch (IOException cleanupEx) {
+                e.addSuppressed(cleanupEx);
+                System.err.println("[CampusFix] Failed to remove temporary CSV file " + tempPath + ": " + cleanupEx.getMessage());
+            }
             throw new StorageException("Failed to export CSV to: " + destination, e);
         }
     }

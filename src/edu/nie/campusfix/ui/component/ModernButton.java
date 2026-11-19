@@ -14,14 +14,15 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 /**
- * Modern styled JButton supporting primary, secondary, danger, and success color tokens
- * with hover, press states, and anti-aliased rounded appearance.
+ * Modern styled JButton supporting primary, secondary, danger, success, ghost, and sidebar
+ * color tokens with dynamic text sizing, hover/press feedback, and anti-aliased rendering.
  */
 @SuppressWarnings({"serial", "this-escape"})
 public class ModernButton extends JButton {
     private static final long serialVersionUID = 1L;
+
     public enum Style {
-        PRIMARY, SECONDARY, DANGER, SUCCESS, SIDEBAR
+        PRIMARY, SECONDARY, DANGER, SUCCESS, GHOST, SIDEBAR
     }
 
     private final Style style;
@@ -32,7 +33,7 @@ public class ModernButton extends JButton {
     public ModernButton(String text, Style style) {
         super(text);
         this.style = style;
-        setFont(UITheme.FONT_BOLD);
+        setFont(style == Style.SIDEBAR ? UITheme.FONT_BOLD : UITheme.FONT_SMALL_BOLD);
         setFocusPainted(false);
         setBorderPainted(false);
         setContentAreaFilled(false);
@@ -41,9 +42,7 @@ public class ModernButton extends JButton {
 
         if (style == Style.SIDEBAR) {
             setHorizontalAlignment(LEADING);
-            setPreferredSize(new Dimension(210, 40));
-        } else {
-            setPreferredSize(new Dimension(getPreferredSize().width + 24, 40));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, UITheme.s(46)));
         }
 
         addMouseListener(new MouseAdapter() {
@@ -58,6 +57,7 @@ public class ModernButton extends JButton {
             @Override
             public void mouseExited(MouseEvent e) {
                 isHovered = false;
+                isPressed = false;
                 repaint();
             }
 
@@ -82,6 +82,25 @@ public class ModernButton extends JButton {
         repaint();
     }
 
+    public boolean isActive() {
+        return isActive;
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        FontMetrics fm = getFontMetrics(getFont());
+        int textWidth = fm.stringWidth(getText() != null ? getText() : "");
+        if (style == Style.SIDEBAR) {
+            return new Dimension(Math.max(UITheme.s(216), textWidth + UITheme.s(36)), UITheme.s(46));
+        }
+        return new Dimension(Math.max(UITheme.s(92), textWidth + UITheme.s(34)), UITheme.s(42));
+    }
+
+    @Override
+    public Dimension getMinimumSize() {
+        return getPreferredSize();
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
@@ -96,8 +115,14 @@ public class ModernButton extends JButton {
         Color border = null;
 
         if (!isEnabled()) {
-            bg = new Color(0xE2, 0xE8, 0xF0);
-            fg = new Color(0x94, 0xA3, 0xB8);
+            if (style == Style.SIDEBAR) {
+                bg = UITheme.SIDEBAR_BG;
+                fg = UITheme.SIDEBAR_MUTED;
+            } else {
+                bg = UITheme.BG_SUBTLE;
+                fg = UITheme.TEXT_SUBTLE;
+                border = UITheme.BORDER_CARD;
+            }
         } else {
             switch (style) {
                 case PRIMARY -> {
@@ -105,7 +130,7 @@ public class ModernButton extends JButton {
                     fg = Color.WHITE;
                 }
                 case SECONDARY -> {
-                    bg = isPressed ? new Color(0xE2, 0xE8, 0xF0) : (isHovered ? new Color(0xF1, 0xF5, 0xF9) : Color.WHITE);
+                    bg = isPressed ? UITheme.BORDER_CARD : (isHovered ? UITheme.BG_SUBTLE : Color.WHITE);
                     fg = UITheme.TEXT_PRIMARY;
                     border = UITheme.BORDER_INPUT;
                 }
@@ -114,8 +139,12 @@ public class ModernButton extends JButton {
                     fg = Color.WHITE;
                 }
                 case SUCCESS -> {
-                    bg = isPressed ? new Color(0x04, 0x78, 0x57) : (isHovered ? UITheme.SUCCESS_HOVER : UITheme.SUCCESS);
+                    bg = isPressed ? new Color(0x06, 0x5F, 0x46) : (isHovered ? UITheme.SUCCESS_HOVER : UITheme.SUCCESS);
                     fg = Color.WHITE;
+                }
+                case GHOST -> {
+                    bg = isPressed ? UITheme.PRIMARY_SOFT : (isHovered ? UITheme.BG_SUBTLE : new Color(0, 0, 0, 0));
+                    fg = UITheme.PRIMARY;
                 }
                 case SIDEBAR -> {
                     bg = isActive ? UITheme.SIDEBAR_ACTIVE : (isHovered ? UITheme.SIDEBAR_HOVER : UITheme.SIDEBAR_BG);
@@ -128,28 +157,29 @@ public class ModernButton extends JButton {
             }
         }
 
-        // Draw background
-        int arc = (style == Style.SIDEBAR) ? 8 : 10;
-        g2.setColor(bg);
-        g2.fillRoundRect(1, 1, w - 2, h - 2, arc, arc);
+        int arc = (style == Style.SIDEBAR) ? 8 : 8;
+        if (bg.getAlpha() > 0) {
+            g2.setColor(bg);
+            g2.fillRoundRect(1, 1, w - 2, h - 2, arc, arc);
+        }
+
+        if (style == Style.SIDEBAR && isActive) {
+            g2.setColor(UITheme.PRIMARY);
+            g2.fillRoundRect(1, 7, 4, h - 14, 4, 4);
+        }
 
         if (border != null) {
             g2.setColor(border);
             g2.drawRoundRect(1, 1, w - 3, h - 3, arc, arc);
         }
 
-        // Draw text
         g2.setFont(getFont());
         g2.setColor(fg);
         FontMetrics fm = g2.getFontMetrics();
-        int textX;
-        if (style == Style.SIDEBAR) {
-            textX = 18;
-        } else {
-            textX = (w - fm.stringWidth(getText())) / 2;
-        }
+        String txt = getText() != null ? getText() : "";
+        int textX = (style == Style.SIDEBAR) ? 18 : (w - fm.stringWidth(txt)) / 2;
         int textY = ((h - fm.getHeight()) / 2) + fm.getAscent();
-        g2.drawString(getText(), textX, textY);
+        g2.drawString(txt, textX, textY);
 
         g2.dispose();
     }

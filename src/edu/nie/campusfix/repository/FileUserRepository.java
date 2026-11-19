@@ -3,6 +3,7 @@ package edu.nie.campusfix.repository;
 import edu.nie.campusfix.enums.Category;
 import edu.nie.campusfix.enums.Role;
 import edu.nie.campusfix.exception.StorageException;
+import edu.nie.campusfix.exception.ValidationException;
 import edu.nie.campusfix.model.AdminUser;
 import edu.nie.campusfix.model.StudentUser;
 import edu.nie.campusfix.model.TechnicianUser;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,14 +23,15 @@ import java.util.Properties;
 
 /**
  * File-based implementation of UserRepository storing user records as Properties files.
- * Provides atomic writes, thread-safe synchronization, and automatic corrupted record isolation.
+ * Provides atomic writes, thread-safe synchronization, overwrite protection, and automatic corrupted record isolation.
  */
 public class FileUserRepository implements UserRepository {
     private final Path storageDir;
     private final Object lock = new Object();
+    private final List<String> corruptedFileWarnings = new ArrayList<>();
 
     public FileUserRepository() {
-        this(Path.of("data/users"));
+        this(FileStorageUtil.resolveDefaultDataDir("users"));
     }
 
     public FileUserRepository(Path storageDir) {
@@ -55,7 +58,9 @@ public class FileUserRepository implements UserRepository {
                 Properties props = FileStorageUtil.loadProperties(file);
                 return Optional.ofNullable(mapPropertiesToUser(props));
             } catch (Exception e) {
-                System.err.println("[CampusFix] Warning: Corrupted user record for id=" + id + ": " + e.getMessage());
+                String msg = "Corrupted user record for id=" + id + ": " + e.getMessage();
+                System.err.println("[CampusFix] Warning: " + msg);
+                corruptedFileWarnings.add(msg);
                 FileStorageUtil.quarantineCorruptFile(file);
                 return Optional.empty();
             }
@@ -75,11 +80,19 @@ public class FileUserRepository implements UserRepository {
                         users.add(user);
                     }
                 } catch (Exception e) {
-                    System.err.println("[CampusFix] Warning: Skipping malformed user file " + file.getFileName() + ": " + e.getMessage());
+                    String msg = "Skipping malformed user file " + file.getFileName() + ": " + e.getMessage();
+                    System.err.println("[CampusFix] Warning: " + msg);
+                    corruptedFileWarnings.add(msg);
                     FileStorageUtil.quarantineCorruptFile(file);
                 }
             }
             return users;
+        }
+    }
+
+    public List<String> getCorruptedFileWarnings() {
+        synchronized (lock) {
+            return Collections.unmodifiableList(new ArrayList<>(corruptedFileWarnings));
         }
     }
 
@@ -125,9 +138,31 @@ public class FileUserRepository implements UserRepository {
     }
 
     @Override
+    public User create(User user) {
+        Objects.requireNonNull(user, "User cannot be null");
+        synchronized (lock) {
+            Path file = FileStorageUtil.resolveSafePath(storageDir, user.getId(), ".properties");
+            if (Files.exists(file)) {
+                throw new StorageException("User record already exists with ID: " + user.getId() + ". Refusing to overwrite.");
+            }
+            Optional<User> existingByUsername = findByUsername(user.getUsername());
+            if (existingByUsername.isPresent()) {
+                throw new ValidationException("Username '" + user.getUsername() + "' is already taken.");
+            }
+            Properties props = mapUserToProperties(user);
+            FileStorageUtil.savePropertiesAtomically(file, props, "CampusFix User: " + user.getUsername());
+            return user;
+        }
+    }
+
+    @Override
     public User save(User user) {
         Objects.requireNonNull(user, "User cannot be null");
         synchronized (lock) {
+            Optional<User> existingByUsername = findByUsername(user.getUsername());
+            if (existingByUsername.isPresent() && !existingByUsername.get().getId().equals(user.getId())) {
+                throw new ValidationException("Username '" + user.getUsername() + "' belongs to another account.");
+            }
             Path file = FileStorageUtil.resolveSafePath(storageDir, user.getId(), ".properties");
             Properties props = mapUserToProperties(user);
             FileStorageUtil.savePropertiesAtomically(file, props, "CampusFix User: " + user.getUsername());

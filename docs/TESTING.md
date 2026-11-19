@@ -41,16 +41,16 @@ java -cp out edu.nie.campusfix.tests.TestRunner
 | **16** | Invalid Transitions Blocked | `ComplaintStatus.canTransitionTo` | Blocks starting work on an unassigned `PENDING` complaint. | **PASS** |
 | **17** | Resolution Notes Saved | `Complaint.resolve` | Confirms mandatory resolution notes (min 5 chars) are persisted upon resolution. | **PASS** |
 | **18** | Complete Audit Trail | `ComplaintHistoryEntry` | Confirms each lifecycle event (`CREATED`, `ASSIGNED`, `WORK_STARTED`, `RESOLVED`) is logged with actor name. | **PASS** |
-| **19** | Overdue SLA Classification | `Complaint.isOverdue` | Confirms complaints past response target hours are overdue; resolved complaints are never overdue. | **PASS** |
-| **20** | Dashboard Metrics Balance | `ReportService` | Asserts sum of `pending + assigned + inProgress + resolved` equals `totalComplaints`. | **PASS** |
-| **21** | Search & Filter Precision | `ComplaintService.searchComplaints` | Verifies multi-predicate filtering (category, priority, status, query) returns exact matching subsets. | **PASS** |
-| **22** | CSV Report Export | `CsvExportUtil`, `ReportService` | Generates RFC-4180 CSV file and verifies presence of standard column headers. | **PASS** |
+| **19** | Overdue SLA Classification | `Complaint.isOverdue` | Verifies exact `Duration` SLA comparison (24h 30m CRITICAL is overdue, 23h 30m is not; resolved complaints are never overdue). | **PASS** |
+| **20** | Dashboard Metrics Balance | `ReportService` | Asserts sum of `pending + assigned + inProgress + resolved` equals `totalComplaints` and overdue count matches overdue list size. | **PASS** |
+| **21** | Search & Filter Precision | `ComplaintService.searchComplaints` | Verifies multi-predicate filtering (category, priority, status, assigned technician ID, unassigned, overdue, query). | **PASS** |
+| **22** | CSV Report Export | `CsvExportUtil`, `ReportService` | Generates full, summary, and overdue RFC-4180 UTF-8 CSV files and verifies quoting and formula-injection mitigation (`=CMD` → `'=CMD`). | **PASS** |
 | **23** | Restart / Reload Survival | `FileUserRepository`, `FileComplaintRepository` | Instantiates new repository instances pointing to existing disk directories; validates record retention. | **PASS** |
-| **24** | Corrupted File Isolation | `FileStorageUtil.quarantineCorruptFile` | Verifies malformed `.properties` file is quarantined to `.corrupt` while valid records continue loading. | **PASS** |
-| **25** | Empty Database Stability | `ReportService` | Verifies reporting and querying on clean directories returns 0 counts without null pointer exceptions. | **PASS** |
+| **24** | Corrupted File Isolation | `FileStorageUtil.quarantineCorruptFile` | Verifies malformed `.properties` file is quarantined to `.corrupt`, recorded in warnings, and path traversal IDs are blocked. | **PASS** |
+| **25** | Empty Database Stability | `ReportService` | Verifies reporting and querying on clean directories returns 0 counts and empty lists without null pointer exceptions. | **PASS** |
 | **26** | Admin Privilege Escalation Block | `AuthenticationService` | Rejects secondary administrative registration attempts once initial admin is initialized. | **PASS** |
 | **27** | Exhaustive Priority Matrix | `PriorityService` | Evaluates all 27 permutations (3 severities × 9 categories) against deterministic rule formula. | **PASS** |
-| **28** | Accidental Overwrite Defense | `FileUserRepository` | Verifies user entity properties and password hashes cannot be corrupted by duplicate IDs. | **PASS** |
+| **28** | Accidental Overwrite Defense | `FileUserRepository`, `FileComplaintRepository` | Verifies `create(...)` rejects colliding user IDs and complaint IDs with `StorageException` without modifying existing records. | **PASS** |
 | **29** | Class Compilation Integrity | File System Check | Verifies all required class binaries are present in the `out/` build directory. | **PASS** |
 | **30** | End-to-End Lifecycle Simulation | Full Subsystem Integration | Simulates complete lifecycle from admin setup and student filing through technician resolution. | **PASS** |
 

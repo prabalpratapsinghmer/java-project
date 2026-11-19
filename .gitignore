@@ -1,7 +1,11 @@
-# Build output
+# Build & Release output
 out/
 bin/
+dist/
 *.class
+
+# Local agent task checklist
+AGY_TASKS.md
 
 # Application data (preserves directory structure via .gitkeep)
 data/users/*.properties

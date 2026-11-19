@@ -8,6 +8,7 @@ import edu.nie.campusfix.model.TechnicianUser;
 import edu.nie.campusfix.model.User;
 import edu.nie.campusfix.repository.ComplaintRepository;
 import edu.nie.campusfix.repository.UserRepository;
+import edu.nie.campusfix.util.ValidationUtil;
 
 import java.util.Objects;
 
@@ -30,8 +31,9 @@ public class AssignmentService {
      */
     public Complaint assignTechnician(User assigner, String complaintId, String technicianId, String note) {
         Objects.requireNonNull(assigner, "Assigner cannot be null");
-        Objects.requireNonNull(complaintId, "Complaint ID cannot be null");
-        Objects.requireNonNull(technicianId, "Technician ID cannot be null");
+        ValidationUtil.validateId(complaintId, "Complaint ID");
+        ValidationUtil.validateId(technicianId, "Technician ID");
+        ValidationUtil.validateOptionalText(note, "Assignment note", 500);
 
         if (!assigner.canAssignComplaints()) {
             throw new UnauthorizedException("Only administrators are authorized to assign or reassign complaints.");

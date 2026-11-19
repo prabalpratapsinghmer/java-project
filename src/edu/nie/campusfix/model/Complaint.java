@@ -255,16 +255,74 @@ public class Complaint {
         if (status == ComplaintStatus.RESOLVED) {
             return false;
         }
-        long hoursElapsed = Duration.between(createdAt, Instant.now()).toHours();
-        return hoursElapsed > priority.getResponseTargetHours();
+        Duration elapsed = getElapsedDuration();
+        return elapsed.compareTo(Duration.ofHours(priority.getResponseTargetHours())) > 0;
     }
 
     /**
-     * Returns elapsed hours since complaint submission.
+     * Returns exact elapsed duration since complaint submission (capped at resolvedAt if resolved).
+     */
+    public Duration getElapsedDuration() {
+        Instant endPoint = (status == ComplaintStatus.RESOLVED && resolvedAt != null) ? resolvedAt : Instant.now();
+        Duration duration = Duration.between(createdAt, endPoint);
+        return duration.isNegative() ? Duration.ZERO : duration;
+    }
+
+    /**
+     * Returns the duration by which an unresolved complaint has exceeded its SLA target (or ZERO if not overdue).
+     */
+    public Duration getOverdueDuration() {
+        if (!isOverdue()) {
+            return Duration.ZERO;
+        }
+        return getElapsedDuration().minus(Duration.ofHours(priority.getResponseTargetHours()));
+    }
+
+    /**
+     * Returns elapsed whole hours since complaint submission.
      */
     public long getElapsedHours() {
-        Instant endPoint = (status == ComplaintStatus.RESOLVED && resolvedAt != null) ? resolvedAt : Instant.now();
-        return Duration.between(createdAt, endPoint).toHours();
+        return getElapsedDuration().toHours();
+    }
+
+    /**
+     * Formats a duration as a concise human-readable string (e.g., "2d 4h", "6h 15m", "12m").
+     */
+    public static String formatDuration(Duration duration) {
+        if (duration == null || duration.isNegative() || duration.isZero()) {
+            return "0m";
+        }
+        long totalMinutes = duration.toMinutes();
+        long days = totalMinutes / (24 * 60);
+        long hours = (totalMinutes % (24 * 60)) / 60;
+        long minutes = totalMinutes % 60;
+        if (days > 0) {
+            return days + "d " + hours + "h";
+        }
+        if (hours > 0) {
+            return hours + "h " + minutes + "m";
+        }
+        return Math.max(1, minutes) + "m";
+    }
+
+    /**
+     * Returns formatted elapsed duration since submission.
+     */
+    public String getFormattedElapsedTime() {
+        return formatDuration(getElapsedDuration());
+    }
+
+    /**
+     * Returns formatted overdue duration ("On Track" if not overdue, "Resolved" if resolved).
+     */
+    public String getFormattedOverdueStatus() {
+        if (status == ComplaintStatus.RESOLVED) {
+            return "Resolved";
+        }
+        if (!isOverdue()) {
+            return "On Track";
+        }
+        return "Overdue by " + formatDuration(getOverdueDuration());
     }
 
     @Override

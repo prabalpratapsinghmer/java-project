@@ -5,11 +5,35 @@
 **Academic Level:** 3rd Semester B.E. / B.Tech  
 **Target Environment:** OpenJDK 17+ (Java Standard Library Exclusively)
 
+[![Latest Release](https://img.shields.io/badge/release-v1.0.0-10B981.svg)](https://github.com/prabalpratapsinghmer/java-project/releases/latest)
+[![Download Windows / macOS / Linux](https://img.shields.io/badge/download-Portable%20ZIP%20(Win%2FMac%2FLinux)-4F46E5.svg)](https://github.com/prabalpratapsinghmer/java-project/releases/download/v1.0.0/CampusFix-1.0.0-Portable.zip)
+[![Download JAR](https://img.shields.io/badge/download-CampusFix.jar-0284C7.svg)](https://github.com/prabalpratapsinghmer/java-project/releases/download/v1.0.0/CampusFix-1.0.0.jar)
+[![Download Linux DEB](https://img.shields.io/badge/download-Linux%20.deb%20Installer-D97706.svg)](https://github.com/prabalpratapsinghmer/java-project/releases/download/v1.0.0/campusfix_1.0.0_amd64.deb)
 [![Documentation Portal](https://img.shields.io/badge/docs-website-blue.svg)](https://prabalpratapsinghmer.github.io/java-project/)
 [![Complete Architectural Manual](https://img.shields.io/badge/manual-understand.md-indigo.svg)](understand.md)
 
 **Live Documentation Website:** [https://prabalpratapsinghmer.github.io/java-project/](https://prabalpratapsinghmer.github.io/java-project/)  
+**All Downloads & Release Notes:** [https://github.com/prabalpratapsinghmer/java-project/releases/latest](https://github.com/prabalpratapsinghmer/java-project/releases/latest)  
 **Comprehensive System & Architecture Manual:** [understand.md](understand.md)
+
+---
+
+## Download & Run CampusFix (Windows, macOS & Linux)
+
+Choose the package that matches your operating system from [**GitHub Release v1.0.0**](https://github.com/prabalpratapsinghmer/java-project/releases/latest):
+
+| Platform | Recommended Download | How to Launch |
+|---|---|---|
+| **Windows / macOS / Linux (All OS)** | [**`CampusFix-1.0.0-Portable.zip`**](https://github.com/prabalpratapsinghmer/java-project/releases/download/v1.0.0/CampusFix-1.0.0-Portable.zip) | Unzip and double-click `Launch-Windows.bat` (Windows), `Launch-macOS.command` (macOS), or `./Launch-Linux.sh` (Linux). Requires Java 17+. |
+| **Any OS (Single File)** | [**`CampusFix-1.0.0.jar`**](https://github.com/prabalpratapsinghmer/java-project/releases/download/v1.0.0/CampusFix-1.0.0.jar) | Run `java -jar CampusFix-1.0.0.jar` (Windows, macOS, or Linux with Java 17+). |
+| **Debian / Ubuntu / Kali Linux** | [**`campusfix_1.0.0_amd64.deb`**](https://github.com/prabalpratapsinghmer/java-project/releases/download/v1.0.0/campusfix_1.0.0_amd64.deb) | Install via `sudo apt install ./campusfix_1.0.0_amd64.deb`, then launch **CampusFix** from your Applications menu (bundles its own Java runtime). |
+
+> **Why is there no Android `.apk`?** CampusFix is built strictly in **Java Swing / AWT** per academic specification (`idea.md`), which is a desktop UI framework for Windows, macOS, and Linux rather than Android mobile devices.
+
+### Interface Previews
+| Initial Admin Setup | Administrator Dashboard | All Complaints & Pill Badges |
+|---|---|---|
+| ![Initial Admin Setup](reports/01_initial_admin_setup.png) | ![Administrator Dashboard](reports/05_admin_dashboard.png) | ![All Complaints](reports/06_admin_all_complaints.png) |
 
 ---
 
@@ -136,6 +160,13 @@ src/edu/nie/campusfix/
 │   ├── Priority.java                  # Priority levels with SLA target hours
 │   ├── Role.java                      # STUDENT, ADMIN, TECHNICIAN
 │   └── Severity.java                  # Base severity scores (1, 2, 3)
+├── exception/
+│   ├── AuthenticationException.java   # Invalid login / inactive account errors
+│   ├── CampusFixException.java        # Base unchecked application exception
+│   ├── ResourceNotFoundException.java # Missing user/complaint errors
+│   ├── StorageException.java          # File I/O, traversal, & overwrite errors
+│   ├── UnauthorizedException.java     # Service-layer RBAC enforcement errors
+│   └── ValidationException.java       # Input validation & transition errors
 ├── model/
 │   ├── AdminUser.java                 # Administrator entity
 │   ├── Complaint.java                 # Complaint aggregate with audit history
@@ -157,30 +188,31 @@ src/edu/nie/campusfix/
 │   ├── PriorityService.java           # Deterministic priority engine
 │   └── ReportService.java             # Analytics aggregation & CSV export
 ├── ui/
-│   ├── AdminDashboardPanel.java       # Administrative control center & tabs
-│   ├── LoginFrame.java                # Sign in, registration, & initial admin setup
-│   ├── MainFrame.java                 # Main application window with slate sidebar
-│   ├── StudentDashboardPanel.java     # Student submission & tracking interface
-│   ├── TechnicianDashboardPanel.java  # Technician work order queue & resolution
+│   ├── AdminDashboardPanel.java       # 6-view admin workspace (Dashboard, All, Duplicates, Overdue, Technicians, Reports)
+│   ├── LoginFrame.java                # Split-panel Sign In, Registration, & Initial Admin Setup
+│   ├── MainFrame.java                 # Main application window with functional dark-slate sidebar
+│   ├── StudentDashboardPanel.java     # Student dashboard overview & My Complaints tracker
+│   ├── TechnicianDashboardPanel.java  # Technician overview & assigned tasks queue
 │   ├── component/
-│   │   ├── ModernButton.java          # Rounded interactive button with hover states
-│   │   ├── ModernTable.java           # Styled JTable with pill badge cell renderers
-│   │   ├── PillBadge.java             # Rounded semantic status/priority badge
-│   │   └── StatCard.java              # Rounded KPI metric card with accent bar
+│   │   ├── ModernButton.java          # Rounded interactive button with active sidebar indicator
+│   │   ├── ModernTable.java           # Styled sortable JTable with direct-painted pill badge renderers
+│   │   ├── PillBadge.java             # Rounded semantic status/priority/overdue/role badge
+│   │   └── StatCard.java              # Rounded KPI metric card with colored accent bar
 │   ├── dialog/
-│   │   ├── AssignTechnicianDialog.java# Workload-informed assignment dialog
-│   │   ├── ComplaintDetailDialog.java # Full metadata & audit timeline dialog
-│   │   ├── NewComplaintDialog.java    # Submission dialog with live priority preview
-│   │   └── ResolveComplaintDialog.java# Mandatory resolution notes dialog
+│   │   ├── AssignTechnicianDialog.java# ID-accurate workload & specialization-matched assignment dialog
+│   │   ├── ComplaintDetailDialog.java # 4-step lifecycle stepper, priority rule, & audit timeline
+│   │   ├── NewComplaintDialog.java    # Validated submission form with live priority & duplicate checks
+│   │   └── ResolveComplaintDialog.java# Mandatory resolution notes dialog with character counter
 │   └── theme/
-│       └── UITheme.java               # Design tokens, color palette, and fonts
+│       └── UITheme.java               # Cross-platform light design tokens, scrollbars, & chart helpers
 ├── util/
-│   ├── CsvExportUtil.java             # RFC-4180 export with formula injection defense
-│   ├── FileStorageUtil.java           # Atomic file persistence & quarantine utilities
-│   ├── PasswordUtil.java              # PBKDF2WithHmacSHA256 password hashing
-│   └── ValidationUtil.java            # Domain boundary validators
+│   ├── CsvExportUtil.java             # Atomic RFC-4180 UTF-8 CSV export with formula injection defense
+│   ├── FileStorageUtil.java           # Atomic file persistence, safe path resolution, & quarantine
+│   ├── PasswordUtil.java              # PBKDF2WithHmacSHA256 password hashing & memory wiping
+│   └── ValidationUtil.java            # Domain input, ID, and length boundary validators
 └── tests/
-    └── TestRunner.java                # Standalone test suite executing 30 test cases
+    ├── TestRunner.java                # Standalone test suite executing 30 isolated test cases
+    └── VerificationProof.java         # Offscreen Swing visual verification & screenshot renderer
 ```
 
 ---
@@ -289,13 +321,15 @@ $$\text{Category Bonus} = \begin{cases} +1 & \text{Category} \in \{\text{ELECTRI
 
 $$\text{Final Score} = \min(4, \max(1, \text{Base Score} + \text{Category Bonus}))$$
 
-| Final Score | Calculated Priority | Response Target (SLA) | Example Scenario |
+| Final Score | Calculated Priority | Demonstrative Response Target | Example Scenario |
 |---|---|---|---|
 | **1** | `LOW` | 7 Days (168 hours) | Minor scratch on classroom desk (`LOW` + `FURNITURE`) |
 | **2** | `MEDIUM` | 72 Hours | Leaking tap in second-floor washroom (`MEDIUM` + `PLUMBING`) |
 | **3** | `HIGH` | 48 Hours | Faulty projector in seminar hall (`HIGH` + `CLASSROOM_EQUIPMENT`) |
 | **3** | `HIGH` | 48 Hours | Slippery stairway puddle (`MEDIUM` + `SAFETY` bonus) |
 | **4** | `CRITICAL` | 24 Hours | Sparking breaker box (`HIGH` + `ELECTRICAL` bonus) |
+
+> **Note:** The response targets above are **project-defined demonstrative targets** used for overdue tracking and reporting, not official college regulations.
 
 ---
 
@@ -369,14 +403,14 @@ RESULTS: 30 / 30 Passed (0 Failed)
 ---
 
 ## 19. Sample Demonstration Scenario
-1. **Initial Setup:** Launch application. First screen displays "Initial Administrator Setup". Enter username `admin`, password `Admin@123`, Full Name `Dr. Ramesh Rao`, Email `admin@nie.ac.in`, Employee ID `ADM01`.
-2. **Register Technician:** Sign in as `admin`. Navigate to "Technician Roster" → "+ Register New Technician". Enter username `tech_rajesh`, password `Tech@123`, Full Name `Rajesh Kumar`, Specialization `Electrical`.
-3. **Register Student:** Sign out. Click "Register as Student". Enter username `student_arun`, password `Student@123`, Full Name `Arun Patel`, USN `4NI22CS001`, Dept `CSE`.
-4. **Report Issue:** Sign in as `student_arun`. Click "+ Report New Complaint". Enter Title `Main Server Room Spark`, Category `Electrical`, Location `Data Center Rack 2`, Severity `HIGH`, Description `Sparks emitting from power distribution unit`. Observe priority automatically previewed as `CRITICAL`. Click Submit.
-5. **Duplicate Warning Test:** Click "+ Report New Complaint" again. Enter same category `Electrical` and location `Data Center Rack 2`. Observe warning dialog alerting of an existing active complaint.
-6. **Task Assignment:** Log in as `admin`. See the new critical complaint at the top. Click "Assign / Reassign" → Select `Rajesh Kumar` (workload: 0 active tasks) → Submit.
-7. **Execution & Resolution:** Log in as `tech_rajesh`. View assigned work order. Click "Start Work" (status changes to `In Progress`). Click "Mark Resolved" → Enter "Replaced faulty terminal fuse and tested load balance" → Submit.
-8. **Export Analytics:** Log in as `admin`. Switch to "Reports & Analytics". Click "Export All to CSV". Verify output in `reports/complaints_summary.csv`.
+1. **Initial Setup:** Launch the application (`./run.sh`). The first-launch screen displays **"Initial Administrator Setup"**. Enter username `admin`, Full Name `Dr. Priya Nair`, Email `admin@nie.ac.in`, Employee ID `ADM-001`, and a secure password (with confirmation).
+2. **Register Technician:** On the Admin sidebar, click **"Technicians"** → **"+ Register Technician"**. Enter username `tech_rajesh`, Full Name `Rajesh Kumar`, Specialization `Electrical`, and a password.
+3. **Register Student:** Click **"Sign Out"**, then click **"Create Account"** on the Sign In screen. Enter username `student_arun`, Full Name `Arun Patel`, Email `arun@nie.ac.in`, Student ID `4NI23CS042`, Dept `CSE`, and a password.
+4. **Report Issue:** On the Student Dashboard, click **"+ Submit New Complaint"**. Enter Title `Main Server Room Spark`, Category `Electrical`, Location `Data Center Rack 2`, Severity `High`, Description `Sparks emitting from power distribution unit`. Observe the live priority badge showing **`Critical`** (`24h` target) and click Submit.
+5. **Duplicate Warning Test:** Click **"+ New Complaint"** again with Category `Electrical` and Location `Data Center, Rack 2!`. Observe the privacy-safe duplicate warning modal and confirm or cancel.
+6. **Task Assignment:** Log in as `admin`, open **"All Complaints"**, select the complaint, and click **"Assign / Reassign"** → select `Rajesh Kumar [Electrical] ★ Match — Active Tasks: 0` → assign.
+7. **Execution & Resolution:** Log in as `tech_rajesh`, open **"Assigned Tasks"**, select the complaint, click **"Start Work"** (`In Progress`), then click **"Mark Resolved"** and enter resolution notes.
+8. **Reports & CSV Export:** Log in as `admin`, click **"Reports & Export"** in the sidebar to inspect all 6 live reports, and click **"Export Full CSV"**, **"Export Summary CSV"**, or **"Export Overdue CSV"** via the file chooser.
 
 ---
 
